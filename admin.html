@@ -428,8 +428,8 @@
         <td class="td-price">${formatPrice(p.price)}</td>
         <td><span class="status ${status}">${statusLabel[status]}</span></td>
         <td><div class="action-btns">
-          <button class="edit-btn" onclick="editProduct(${p.id})">✏️ Edit</button>
-          <button class="del-btn" onclick="deleteProduct(${p.id})">🗑️ Delete</button>
+          <button class="edit-btn" onclick="editProduct('${p.id}')">✏️ Edit</button>
+          <button class="del-btn" onclick="deleteProduct('${p.id}')">🗑️ Delete</button>
         </div></td>
       </tr>`;
     }).join('');
@@ -447,7 +447,7 @@
         <td style="color:var(--muted)">${o.pickup_date ? `${o.pickup_date} · ${o.pickup_time || ''}` : '—'}</td>
         <td><span class="status ${o.status}">${statusLabel[o.status] || o.status}</span></td>
         <td>
-          <select onchange="updateOrderStatus(${o.id}, this.value)" style="padding:6px 10px;font-size:12px">
+          <select onchange="updateOrderStatus('${o.id}', this.value)" style="padding:6px 10px;font-size:12px">
             <option value="pending" ${o.status==='pending'?'selected':''}>Pending</option>
             <option value="confirmed" ${o.status==='confirmed'?'selected':''}>Confirmed</option>
             <option value="done" ${o.status==='done'?'selected':''}>Completed</option>
@@ -469,7 +469,7 @@
         <td style="max-width:300px;white-space:normal">${m.message}</td>
         <td style="color:var(--muted);white-space:nowrap">${dateStr}</td>
         <td>
-          <select onchange="updateMessageStatus(${m.id}, this.value)" style="padding:6px 10px;font-size:12px">
+          <select onchange="updateMessageStatus('${m.id}', this.value)" style="padding:6px 10px;font-size:12px">
             <option value="new" ${m.status==='new'?'selected':''}>New</option>
             <option value="read" ${m.status==='read'?'selected':''}>Read</option>
             <option value="replied" ${m.status==='replied'?'selected':''}>Replied</option>
@@ -687,8 +687,8 @@
         <td style="color:var(--muted);white-space:nowrap">${date}</td>
         <td>
           <div class="action-btns">
-            <button class="edit-btn" onclick="openReplyModal(${r.id})">💬 Reply</button>
-            <button class="del-btn" onclick="deleteReview(${r.id})">🗑️ Delete</button>
+            <button class="edit-btn" onclick="openReplyModal('${r.id}')">💬 Reply</button>
+            <button class="del-btn" onclick="deleteReview('${r.id}')">🗑️ Delete</button>
           </div>
         </td>
       </tr>`;
