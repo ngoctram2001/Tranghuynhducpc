@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -337,6 +336,7 @@
 
   const SUPABASE_URL = 'https://bdnampbubuhxgfdirurl.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbmFtcGJ1YnVoeGdmZGlydXJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MTM5NDYsImV4cCI6MjA5NzM4OTk0Nn0.I8iJKBuekbLJcymSyePHgmNNKiABbi2AtjMKMx0CZXk';
+  const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbmFtcGJ1YnVoeGdmZGlydXJsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTgxMzk0NiwiZXhwIjoyMDk3Mzg5OTQ2fQ.DQ50aGeA6yuDPENdr-x0vnQkLVXD9Ueoc21bwCS9yNE';
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   window._supabase = supabase;
@@ -389,6 +389,7 @@
   async function loadProducts() {
     const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     products = data || [];
+    window._products = products;
     renderProductsTable();
     populateProductSelect();
   }
@@ -494,7 +495,8 @@
     const preview = document.getElementById('image-preview');
     preview.classList.remove('show');
     if (id) {
-      const p = products.find(x => x.id === id);
+      const p = (window._products || []).find(x => x.id === id);
+      if (!p) { showToast('Product not found', true); return; }
       document.getElementById('p-name').value = p.name;
       document.getElementById('p-price').value = p.price;
       document.getElementById('p-status').value = p.status || 'available';
@@ -576,11 +578,34 @@
     if (!data.name || !data.price) { showToast('Please enter a name and price', true); return; }
     const btn = document.getElementById('save-product-btn');
     btn.disabled = true;
-    let error;
-    if (id) ({ error } = await supabase.from('products').update(data).eq('id', id));
-    else ({ error } = await supabase.from('products').insert(data));
+
+    let res;
+    if (id) {
+      res = await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SERVICE_KEY,
+          'Authorization': 'Bearer ' + SERVICE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(data)
+      });
+    } else {
+      res = await fetch(`${SUPABASE_URL}/rest/v1/products`, {
+        method: 'POST',
+        headers: {
+          'apikey': SERVICE_KEY,
+          'Authorization': 'Bearer ' + SERVICE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(data)
+      });
+    }
+
     btn.disabled = false;
-    if (error) { showToast('Error: ' + error.message, true); return; }
+    if (!res.ok) { showToast('Error: ' + (await res.text()), true); return; }
     showToast(id ? '✅ Product updated' : '✅ Product added');
     closeProductModal();
     loadProducts();
@@ -588,7 +613,26 @@
 
   window.deleteProduct = async function(id) {
     if (!confirm('Delete this product?')) return;
-    await supabase.from('products').delete().eq('id', id);
+    // First remove product_id from any orders referencing this product
+    await fetch(`${SUPABASE_URL}/rest/v1/orders?product_id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SERVICE_KEY,
+        'Authorization': 'Bearer ' + SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ product_id: null })
+    });
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/products?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SERVICE_KEY,
+        'Authorization': 'Bearer ' + SERVICE_KEY,
+        'Prefer': 'return=minimal'
+      }
+    });
+    if (!res.ok) { showToast('Error deleting product', true); return; }
     showToast('🗑️ Product deleted');
     loadProducts();
   };
@@ -697,8 +741,8 @@
   }
 
   window.openReplyModal = function(id) {
-    const r = reviews.find(x => x.id === id);
-    if (!r) return;
+    const r = (window._reviews || []).find(x => x.id === id);
+    if (!r) { showToast('Review not found', true); return; }
     document.getElementById('reply-review-id').value = id;
     document.getElementById('reply-text').value = r.admin_reply || '';
     document.getElementById('reply-review-preview').innerHTML = `
@@ -716,22 +760,42 @@
     const id = document.getElementById('reply-review-id').value;
     const reply = document.getElementById('reply-text').value.trim();
     if (!reply) { showToast('Please write a reply first', true); return; }
-    await window._supabase.from('reviews').update({ admin_reply: reply }).eq('id', id);
+
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SERVICE_KEY,
+        'Authorization': 'Bearer ' + SERVICE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ admin_reply: reply })
+    });
+
+    if (!res.ok) { showToast('Error saving reply', true); return; }
     showToast('✅ Reply saved');
     closeReplyModal();
-    const { data: rd } = await window._supabase.from('reviews').select('*').order('created_at', { ascending: false });
+    const { data: rd } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
     reviews = rd || [];
-    window._reviews = reviews;
     renderReviewsTable();
   };
 
   window.deleteReview = async function(id) {
     if (!confirm('Delete this review?')) return;
-    await window._supabase.from('reviews').delete().eq('id', id);
+
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: {
+        'apikey': SERVICE_KEY,
+        'Authorization': 'Bearer ' + SERVICE_KEY,
+        'Prefer': 'return=minimal'
+      }
+    });
+
+    if (!res.ok) { showToast('Error deleting review', true); return; }
     showToast('🗑️ Review deleted');
-    const { data: rd } = await window._supabase.from('reviews').select('*').order('created_at', { ascending: false });
+    const { data: rd } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
     reviews = rd || [];
-    window._reviews = reviews;
     renderReviewsTable();
   };
 
