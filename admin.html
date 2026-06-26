@@ -230,6 +230,22 @@
       <h2>Orders</h2>
       <button class="add-btn" onclick="openOrderModal()">+ Create order</button>
     </div>
+
+    <!-- FILTER BAR -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="order-search" placeholder="🔍  Tìm tên khách hoặc sản phẩm..."
+        oninput="applyOrderFilter()"
+        style="flex:1;min-width:200px;background:#2b211a;border:1px solid #3d3024;border-radius:8px;padding:10px 14px;color:#f7f0e8;font-size:14px;font-family:inherit;">
+      <select id="order-status-filter" onchange="applyOrderFilter()"
+        style="width:auto;padding:10px 14px;font-size:14px;border-radius:8px">
+        <option value="all">Tất cả trạng thái</option>
+        <option value="pending">Pending</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="done">Completed</option>
+      </select>
+      <div id="order-count" style="font-size:13px;color:#a8957f;white-space:nowrap"></div>
+    </div>
+
     <div class="table-wrap">
       <table>
         <thead><tr>
@@ -305,7 +321,12 @@
           </div>
         </div>
         <div class="upload-status" id="upload-status"></div>
-        <div class="image-preview" id="image-preview"><img id="image-preview-img" src="" alt="Preview"></div>
+        <div class="image-preview" id="image-preview">
+          <img id="image-preview-img" src="" alt="Preview"
+            onerror="this.style.opacity='.3';this.closest('.image-preview').querySelector('.img-err') && (this.closest('.image-preview').querySelector('.img-err').style.display='block')"
+            onload="this.style.opacity='1'">
+          <div class="img-err" style="display:none;position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:12px;color:var(--red)">❌ Ảnh không load được</div>
+        </div>
       </div>
       <div class="form-group"><label>Short description</label><textarea id="p-desc" placeholder="Short product description..."></textarea></div>
       <div class="form-group"><label>Full specifications</label><textarea id="p-specs" placeholder="CPU: Intel i5-13400F&#10;RAM: 16GB DDR4&#10;GPU: RTX 4060&#10;SSD: 500GB NVMe&#10;..."></textarea></div>
@@ -399,6 +420,58 @@
     document.getElementById('login-page').style.display = 'none';
     document.getElementById('admin-page').style.display = 'block';
     loadAll();
+    startRealtime();
+  }
+
+  // ─── REALTIME ─────────────────────────────────────────────────────────────
+  function startRealtime() {
+    supabase.channel('realtime-orders')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, async (payload) => {
+        await loadOrders();
+        updateStats();
+        showNotification('📦 Đơn hàng mới!', payload.new.customer_name + ' vừa đặt ' + (payload.new.product_name || 'một sản phẩm'));
+      })
+      .subscribe();
+
+    supabase.channel('realtime-messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, async (payload) => {
+        await loadMessages();
+        updateStats();
+        showNotification('💬 Tin nhắn mới!', payload.new.name + ': ' + payload.new.message.slice(0, 60) + '...');
+      })
+      .subscribe();
+  }
+
+  function showNotification(title, body) {
+    // Đổi title tab để báo hiệu
+    document.title = '🔴 ' + document.title.replace(/^🔴 /, '');
+    setTimeout(() => { document.title = document.title.replace(/^🔴 /, ''); }, 5000);
+
+    // Âm thanh ping
+    try {
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc.start(); osc.stop(ctx.currentTime + 0.4);
+    } catch(e) {}
+
+    // Popup thông báo góc phải
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;background:#221a14;border:1px solid #ff5722;border-radius:12px;padding:16px 20px;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,.5);font-family:Inter,sans-serif;';
+    const tabTarget = title.includes('📦') ? 'orders' : 'messages';
+    box.innerHTML = '<div style="font-weight:700;color:#ff5722;margin-bottom:4px;font-size:15px">' + title + '</div>'
+      + '<div style="color:#f7f0e8;font-size:13px;line-height:1.5">' + body + '</div>'
+      + '<div style="margin-top:10px;display:flex;gap:8px">'
+      + '<button onclick="switchTab(\'' + tabTarget + '\');this.closest(\'div\').parentElement.remove()" style="background:#ff5722;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600">Xem ngay</button>'
+      + '<button onclick="this.closest(\'div\').parentElement.remove()" style="background:#2b211a;color:#a8957f;border:1px solid #3d3024;padding:6px 14px;border-radius:6px;font-size:12px;cursor:pointer">Bỏ qua</button>'
+      + '</div>';
+    document.body.appendChild(box);
+    setTimeout(() => { if (box.parentNode) box.remove(); }, 8000);
   }
 
   // ─── TABS ─────────────────────────────────────────────────────────────────
@@ -424,7 +497,7 @@
   async function loadOrders() {
     const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
     orders = data || [];
-    renderOrdersTable();
+    applyOrderFilter();
   }
   async function loadMessages() {
     const { data } = await supabase.from('messages').select('*').order('created_at', { ascending: false });
@@ -599,11 +672,15 @@
   };
 
   // ─── ORDERS TABLE ─────────────────────────────────────────────────────────
-  function renderOrdersTable() {
+  function renderOrdersTable(list) {
     const tb = document.getElementById('orders-table');
     const statusLabel = { pending: 'Pending', confirmed: 'Confirmed', done: 'Completed' };
-    if (!orders.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="6">No orders yet.</td></tr>'; return; }
-    tb.innerHTML = orders.map(o => `
+    const data = list !== undefined ? list : orders;
+    if (!data.length) {
+      tb.innerHTML = '<tr class="empty-row"><td colspan="6">Không tìm thấy đơn hàng nào</td></tr>';
+      return;
+    }
+    tb.innerHTML = data.map(o => `
       <tr>
         <td><strong>${escHtml(o.customer_name)}</strong></td>
         <td>${escHtml(o.customer_phone)}</td>
@@ -619,6 +696,29 @@
         </td>
       </tr>`).join('');
   }
+
+  window.applyOrderFilter = function() {
+    const keyword = (document.getElementById('order-search').value || '').toLowerCase().trim();
+    const status  = document.getElementById('order-status-filter').value;
+
+    const filtered = orders.filter(o => {
+      const matchSearch = !keyword
+        || (o.customer_name  || '').toLowerCase().includes(keyword)
+        || (o.customer_phone || '').toLowerCase().includes(keyword)
+        || (o.product_name   || '').toLowerCase().includes(keyword);
+      const matchStatus = status === 'all' || o.status === status;
+      return matchSearch && matchStatus;
+    });
+
+    renderOrdersTable(filtered);
+
+    const countEl = document.getElementById('order-count');
+    if (keyword || status !== 'all') {
+      countEl.textContent = `Hiển thị ${filtered.length} / ${orders.length} đơn`;
+    } else {
+      countEl.textContent = `Tổng: ${orders.length} đơn`;
+    }
+  };
 
   window.updateOrderStatus = async function (sel) {
     const id     = sel.getAttribute('data-id');
