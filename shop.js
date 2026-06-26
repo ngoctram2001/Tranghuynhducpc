@@ -31,7 +31,11 @@ function renderCards(list) {
     <div class="card" onclick="openModal(${p.id})">
       <div class="card-img-wrap">
         ${statusPillHtml(p.status || 'available')}
-        ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy">` : '<div class="card-img-fallback">🖥️</div>'}
+        ${p.image_url
+          ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+          : ''}
+        <div class="card-img-fallback" style="${p.image_url ? 'display:none' : ''}">🖥️</div>
       </div>
       <div class="card-body">
         <div class="card-category">${p.category || 'Custom PC'}</div>
@@ -108,7 +112,8 @@ window.openModal = function(id) {
 
   const imgWrap = document.getElementById('modal-img-wrap');
   imgWrap.innerHTML = p.image_url
-    ? `<img class="modal-img" src="${p.image_url}" alt="${p.name}">`
+    ? `<img class="modal-img" src="${p.image_url}" alt="${p.name}"
+         onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<div class=\'modal-img-fallback\'>🖥️</div>')">`
     : `<div class="modal-img-fallback">🖥️</div>`;
 
   const orderBtn = document.getElementById('modal-order-btn');
@@ -146,7 +151,11 @@ function openBookingModal() {
   document.getElementById('booking-form-view').classList.remove('hidden');
   document.getElementById('booking-success-view').classList.add('hidden');
   document.getElementById('booking-product-preview').innerHTML = `
-    ${p.image_url ? `<img src="${p.image_url}" alt="${p.name}">` : ''}
+    ${p.image_url
+      ? `<img src="${p.image_url}" alt="${p.name}"
+           onerror="this.style.display='none'"
+           style="width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0">`
+      : '<div style="width:56px;height:56px;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🖥️</div>'}
     <div>
       <div class="opp-name">${p.name}</div>
       <div class="opp-price">${formatPrice(p.price)}</div>
