@@ -362,7 +362,7 @@
 
   const SUPABASE_URL = 'https://bdnampbubuhxgfdirurl.supabase.co';
   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbmFtcGJ1YnVoeGdmZGlydXJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MTM5NDYsImV4cCI6MjA5NzM4OTk0Nn0.I8iJKBuekbLJcymSyePHgmNNKiABbi2AtjMKMx0CZXk';
-  const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbmFtcGJ1YnVoeGdmZGlydXJsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MTgxMzk0NiwiZXhwIjoyMDk3Mzg5OTQ2fQ.DQ50aGeA6yuDPENdr-x0vnQkLVXD9Ueoc21bwCS9yNE';
+  // SERVICE_KEY đã được xóa — dùng RLS policy "authenticated" thay thế
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -783,20 +783,10 @@
     if (!r) { showToast('Review not found', true); return; }
     if (!confirm(`Delete review by "${r.name}"?`)) return;
 
-    // Dùng SERVICE_KEY để bypass RLS
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/reviews?id=eq.${id}`, {
-      method: 'DELETE',
-      headers: {
-        'apikey': SERVICE_KEY,
-        'Authorization': 'Bearer ' + SERVICE_KEY,
-        'Prefer': 'return=minimal'
-      }
-    });
-    if (!res.ok) {
-      const body = await res.text();
-      showToast('Error deleting review: ' + (body || res.status), true);
-      return;
-    }
+    // Dùng supabase client với session admin đang đăng nhập
+    // RLS policy "authenticated can delete" cho phép điều này
+    const { error } = await supabase.from('reviews').delete().eq('id', id);
+    if (error) { showToast('Error: ' + error.message, true); return; }
     showToast('🗑️ Review deleted');
     await loadReviews();
   };
