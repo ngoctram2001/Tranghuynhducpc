@@ -180,7 +180,14 @@
       <div class="admin-logo">PC<span>Store</span></div>
       <div class="admin-badge">Admin</div>
     </div>
-    <button class="logout-btn" onclick="logout()">Log out</button>
+    <div style="display:flex;align-items:center;gap:10px">
+      <a href="index.html" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);padding:8px 16px;border-radius:8px;font-size:13px;text-decoration:none;transition:border-color .2s"
+         onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+         onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+        🏠 View shop
+      </a>
+      <button class="logout-btn" onclick="logout()">Log out</button>
+    </div>
   </nav>
 
   <div class="tabs">
@@ -721,11 +728,40 @@
   };
 
   window.updateOrderStatus = async function (sel) {
-    const id     = sel.getAttribute('data-id');
-    const status = sel.value;
+    const id       = sel.getAttribute('data-id');
+    const status   = sel.value;
+    const order    = orders.find(o => String(o.id) === String(id));
+
     const { error } = await supabase.from('orders').update({ status }).eq('id', id);
     if (error) { showToast('Error: ' + error.message, true); return; }
-    showToast('✅ Status updated');
+
+    // Tự động cập nhật trạng thái sản phẩm theo đơn hàng
+    if (order?.product_id) {
+      let productStatus = null;
+
+      if (status === 'done') {
+        // Đơn hoàn thành → sản phẩm đã bán
+        productStatus = 'sold';
+      } else if (status === 'confirmed') {
+        // Đơn xác nhận → giữ reserved
+        productStatus = 'reserved';
+      } else if (status === 'pending') {
+        // Đơn quay lại pending → mở lại sản phẩm
+        productStatus = 'available';
+      }
+
+      if (productStatus) {
+        const { error: pErr } = await supabase
+          .from('products')
+          .update({ status: productStatus })
+          .eq('id', order.product_id);
+        if (pErr) console.warn('Product status update failed:', pErr.message);
+        else await loadProducts();
+      }
+    }
+
+    const labels = { done: 'Completed ✅', confirmed: 'Confirmed', pending: 'Pending' };
+    showToast(`✅ Order marked as ${labels[status] || status}`);
     await loadOrders();
     updateStats();
   };
