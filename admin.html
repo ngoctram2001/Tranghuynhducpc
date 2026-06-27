@@ -120,8 +120,8 @@
   /* IMAGE UPLOAD */
   .image-upload-row { display: flex; gap: 12px; align-items: center; }
   .image-upload-row input[type=text] { flex: 1; }
-  .upload-btn-wrap { position: relative; flex-shrink: 0; }
-  .upload-btn-wrap input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-btn-wrap { flex-shrink: 0; }
+  .upload-btn-wrap input[type=file] { display: none; }
   .upload-btn {
     background: var(--surface2); border: 1px solid var(--border); color: var(--text);
     padding: 11px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
@@ -325,16 +325,15 @@
         <div class="image-upload-row">
           <input type="text" id="p-img" placeholder="https://... or upload a photo">
           <div class="upload-btn-wrap" id="upload-btn-wrap">
-            <button type="button" class="upload-btn">📷 Upload photo</button>
+            <label for="p-img-file" class="upload-btn">📷 Upload photo</label>
             <input type="file" id="p-img-file" accept="image/*">
           </div>
         </div>
         <div class="upload-status" id="upload-status"></div>
         <div class="image-preview" id="image-preview">
           <img id="image-preview-img" src="" alt="Preview"
-            onerror="this.style.opacity='.3';this.closest('.image-preview').querySelector('.img-err') && (this.closest('.image-preview').querySelector('.img-err').style.display='block')"
+            onerror="this.style.opacity='.3'"
             onload="this.style.opacity='1'">
-          <div class="img-err" style="display:none;position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:12px;color:var(--red)">❌ Ảnh không load được</div>
         </div>
       </div>
       <div class="form-group"><label>Short description</label><textarea id="p-desc" placeholder="Short product description..."></textarea></div>
@@ -661,29 +660,24 @@
     else { preview.classList.remove('show'); }
   });
 
-  // Image file upload — dùng event delegation để luôn bắt được input sau khi clone
-  document.getElementById('upload-btn-wrap').addEventListener('change', async e => {
-    if (!e.target.matches('input[type=file]')) return;
+  // Image file upload
+  document.getElementById('p-img-file').addEventListener('change', async e => {
     const file = e.target.files[0];
     if (!file) return;
-
-    // Clone + replace file input ngay lập tức để trả lại pointer-events cho modal
-    const oldInput = e.target;
-    const newInput = oldInput.cloneNode(true);
-    oldInput.parentNode.replaceChild(newInput, oldInput);
 
     const status     = document.getElementById('upload-status');
     const preview    = document.getElementById('image-preview');
     const previewImg = document.getElementById('image-preview-img');
-    const saveBtn    = document.getElementById('save-product-btn');
 
     // Hiện preview local ngay lập tức
-    previewImg.src = URL.createObjectURL(file);
+    const localUrl = URL.createObjectURL(file);
+    previewImg.src = localUrl;
     preview.classList.add('show');
     status.textContent = '⏳ Đang upload...';
-    // Disable save trong khi upload để tránh lưu URL chưa có
-    saveBtn.disabled    = true;
-    saveBtn.textContent = '⏳ Uploading image...';
+    status.style.color = 'var(--muted)';
+
+    // Reset để có thể chọn lại cùng file
+    e.target.value = '';
 
     try {
       const ext      = file.name.split('.').pop().toLowerCase();
@@ -699,18 +693,14 @@
         .getPublicUrl(fileName);
 
       document.getElementById('p-img').value = urlData.publicUrl;
-      previewImg.src   = urlData.publicUrl;
+      previewImg.src = urlData.publicUrl;
       status.textContent = '✅ Upload thành công!';
       status.style.color = 'var(--green)';
 
     } catch (err) {
-      // Upload lỗi — vẫn cho nhập URL thủ công, không bị đơ
       status.textContent = '❌ Upload lỗi: ' + (err.message || 'Kiểm tra Storage bucket');
       status.style.color = 'var(--red)';
-    } finally {
-      // Luôn mở lại nút Save dù upload thành công hay lỗi
-      saveBtn.disabled    = false;
-      saveBtn.textContent = '💾 Save product';
+      // Vẫn giữ preview local và cho phép save với URL thủ công
     }
   });
 
