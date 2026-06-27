@@ -99,15 +99,17 @@
   .status.available { background: rgba(34,197,94,.1); color: var(--green); }
   .status.reserved { background: rgba(245,158,11,.1); color: var(--orange); }
   .status.sold { background: rgba(239,68,68,.1); color: var(--red); }
+  .status.cancelled { background: rgba(100,100,100,.15); color: #888; text-decoration: line-through; }
 
   /* MODAL */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px; backdrop-filter: blur(4px); }
   .modal-overlay.open { display: flex; }
-  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto; }
-  .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  .modal { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; max-width: 560px; width: 100%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
+  .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; background: var(--surface); z-index: 1; }
   .modal-header h3 { font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; }
   .modal-close { background: var(--surface2); border: none; color: var(--muted); width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 18px; }
-  .modal-body { padding: 24px; }
+  .modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); flex-shrink: 0; background: var(--surface); }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .form-group textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px; font-family: inherit; resize: vertical; min-height: 80px; }
   .form-group textarea:focus { outline: none; border-color: var(--accent); }
@@ -119,7 +121,7 @@
   .image-upload-row { display: flex; gap: 12px; align-items: center; }
   .image-upload-row input[type=text] { flex: 1; }
   .upload-btn-wrap { position: relative; flex-shrink: 0; }
-  .upload-btn-wrap input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+  .upload-btn-wrap input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; pointer-events: auto; }
   .upload-btn {
     background: var(--surface2); border: 1px solid var(--border); color: var(--text);
     padding: 11px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
@@ -256,7 +258,7 @@
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Customer</th><th>Phone</th><th>Product</th><th>Pickup</th><th>Status</th><th>Update status</th>
+          <th>Customer</th><th>Phone</th><th>Product</th><th>Pickup</th><th>Status</th><th>Update status</th><th>Action</th>
         </tr></thead>
         <tbody id="orders-table"></tbody>
       </table>
@@ -337,6 +339,8 @@
       </div>
       <div class="form-group"><label>Short description</label><textarea id="p-desc" placeholder="Short product description..."></textarea></div>
       <div class="form-group"><label>Full specifications</label><textarea id="p-specs" placeholder="CPU: Intel i5-13400F&#10;RAM: 16GB DDR4&#10;GPU: RTX 4060&#10;SSD: 500GB NVMe&#10;..."></textarea></div>
+    </div>
+    <div class="modal-footer">
       <button class="save-btn" id="save-product-btn" onclick="saveProduct()">💾 Save product</button>
     </div>
   </div>
@@ -359,6 +363,8 @@
       <div class="form-group"><label>Pickup time</label>
         <select id="o-time"><option value="">-- Select a date first --</option></select>
       </div>
+    </div>
+    <div class="modal-footer">
       <button class="save-btn" onclick="saveOrder()">💾 Create order</button>
     </div>
   </div>
@@ -378,6 +384,8 @@
         <textarea id="reply-text" placeholder="Write your reply..." style="min-height:100px"></textarea>
       </div>
       <input type="hidden" id="reply-review-id">
+    </div>
+    <div class="modal-footer">
       <button class="save-btn" onclick="submitReply()">💬 Send reply</button>
     </div>
   </div>
@@ -399,11 +407,12 @@
   let orders   = [];
   let messages = [];
   let reviews  = [];
+  let realtimeStarted = false; // flag chặn gọi nhiều lần
 
   // ─── AUTH ─────────────────────────────────────────────────────────────────
   supabase.auth.onAuthStateChange((event, session) => {
     if (session) showAdmin();
-    else showLogin();
+    else { realtimeStarted = false; showLogin(); }
   });
 
   window.login = async function () {
@@ -432,6 +441,8 @@
 
   // ─── REALTIME ─────────────────────────────────────────────────────────────
   function startRealtime() {
+    if (realtimeStarted) return; // chặn gọi lại
+    realtimeStarted = true;
     supabase.channel('realtime-orders')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, async (payload) => {
         await loadOrders();
@@ -566,12 +577,42 @@
     const id = btn.getAttribute('data-id');
     const p  = products.find(x => String(x.id) === String(id));
     if (!p) { showToast('Product not found', true); return; }
-    if (!confirm(`Delete "${p.name}"?`)) return;
+
+    // Kiểm tra có đơn hàng Pending/Confirmed liên quan không
+    const activeOrders = orders.filter(o =>
+      String(o.product_id) === String(p.id) &&
+      (o.status === 'pending' || o.status === 'confirmed')
+    );
+
+    let cancelRelated = false;
+    if (activeOrders.length > 0) {
+      const choice = confirm(
+        `"${p.name}" đang có ${activeOrders.length} đơn hàng Pending/Confirmed.\n\n` +
+        `OK = Xóa sản phẩm VÀ hủy các đơn liên quan\n` +
+        `Cancel = Giữ nguyên đơn hàng, chỉ xóa sản phẩm`
+      );
+      // null = người dùng bấm X (thoát) → không làm gì
+      if (choice === null) return;
+      cancelRelated = choice;
+    } else {
+      if (!confirm(`Xóa sản phẩm "${p.name}"?`)) return;
+    }
+
+    // Hủy các đơn liên quan nếu admin chọn OK
+    if (cancelRelated && activeOrders.length > 0) {
+      for (const o of activeOrders) {
+        await supabase.from('orders').update({ status: 'cancelled' }).eq('id', o.id);
+      }
+    }
 
     const { error } = await supabase.from('products').delete().eq('id', p.id);
     if (error) { showToast('Error: ' + error.message, true); return; }
-    showToast('🗑️ Product deleted');
-    loadProducts();
+
+    showToast(cancelRelated
+      ? `🗑️ Đã xóa sản phẩm và hủy ${activeOrders.length} đơn liên quan`
+      : '🗑️ Product deleted');
+    await loadProducts();
+    await loadOrders();
     updateStats();
   };
 
@@ -620,27 +661,54 @@
   document.getElementById('p-img-file').addEventListener('change', async e => {
     const file = e.target.files[0];
     if (!file) return;
+
     const status     = document.getElementById('upload-status');
     const preview    = document.getElementById('image-preview');
     const previewImg = document.getElementById('image-preview-img');
+    const saveBtn    = document.getElementById('save-product-btn');
 
+    // Hiện preview local ngay lập tức
     previewImg.src = URL.createObjectURL(file);
     preview.classList.add('show');
-    status.textContent = '⏳ Uploading...';
+    status.textContent = '⏳ Đang upload...';
+    // Disable save trong khi upload để tránh lưu URL chưa có
+    saveBtn.disabled    = true;
+    saveBtn.textContent = '⏳ Uploading image...';
 
-    const ext      = file.name.split('.').pop();
-    const fileName = `product-${Date.now()}.${ext}`;
-    const { error } = await supabase.storage.from('product-images').upload(fileName, file, { cacheControl: '3600', upsert: false });
+    try {
+      const ext      = file.name.split('.').pop().toLowerCase();
+      const fileName = `product-${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
+        .from('product-images')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
 
-    if (error) {
-      status.textContent = '❌ Upload failed: ' + error.message;
-      showToast('Image upload failed', true);
-      return;
+      if (error) throw error;
+
+      const { data: urlData } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+
+      document.getElementById('p-img').value = urlData.publicUrl;
+      previewImg.src   = urlData.publicUrl;
+      status.textContent = '✅ Upload thành công!';
+      status.style.color = 'var(--green)';
+
+    } catch (err) {
+      // Upload lỗi — vẫn cho nhập URL thủ công, không bị đơ
+      status.textContent = '❌ Upload lỗi: ' + (err.message || 'Kiểm tra Storage bucket');
+      status.style.color = 'var(--red)';
+      // Reset file input để có thể thử lại
+      e.target.value = '';
+    } finally {
+      // Luôn mở lại nút Save dù upload thành công hay lỗi
+      saveBtn.disabled    = false;
+      saveBtn.textContent = '💾 Save product';
+      // Blur file input để trả focus về trang, tránh block các input khác
+      e.target.blur();
+      e.target.value = '';
+      document.getElementById('p-desc').focus();
+      setTimeout(() => document.getElementById('p-desc').blur(), 50);
     }
-    const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(fileName);
-    document.getElementById('p-img').value = urlData.publicUrl;
-    previewImg.src = urlData.publicUrl;
-    status.textContent = '✅ Uploaded';
   });
 
   window.saveProduct = async function () {
@@ -681,7 +749,7 @@
   // ─── ORDERS TABLE ─────────────────────────────────────────────────────────
   function renderOrdersTable(list) {
     const tb = document.getElementById('orders-table');
-    const statusLabel = { pending: 'Pending', confirmed: 'Confirmed', done: 'Completed' };
+    const statusLabel = { pending: 'Pending', confirmed: 'Confirmed', done: 'Completed', cancelled: 'Cancelled' };
     const data = list !== undefined ? list : orders;
     if (!data.length) {
       tb.innerHTML = '<tr class="empty-row"><td colspan="6">Không tìm thấy đơn hàng nào</td></tr>';
@@ -696,10 +764,14 @@
         <td><span class="status ${o.status}">${statusLabel[o.status] || o.status}</span></td>
         <td>
           <select data-id="${o.id}" onchange="updateOrderStatus(this)" style="padding:6px 10px;font-size:12px;width:auto">
-            <option value="pending"   ${o.status==='pending'   ?'selected':''}>Pending</option>
-            <option value="confirmed" ${o.status==='confirmed' ?'selected':''}>Confirmed</option>
-            <option value="done"      ${o.status==='done'      ?'selected':''}>Completed</option>
+            <option value="pending"    ${o.status==='pending'    ?'selected':''}>Pending</option>
+            <option value="confirmed"  ${o.status==='confirmed'  ?'selected':''}>Confirmed</option>
+            <option value="done"       ${o.status==='done'       ?'selected':''}>Completed</option>
+            <option value="cancelled"  ${o.status==='cancelled'  ?'selected':''}>Cancelled</option>
           </select>
+        </td>
+        <td>
+          <button class="del-btn" data-id="${o.id}" onclick="deleteOrderById(this)" style="white-space:nowrap">🗑️ Xóa</button>
         </td>
       </tr>`).join('');
   }
@@ -760,8 +832,39 @@
       }
     }
 
-    const labels = { done: 'Completed ✅', confirmed: 'Confirmed', pending: 'Pending' };
+    const labels = { done: 'Completed ✅', confirmed: 'Confirmed', pending: 'Pending', cancelled: 'Cancelled' };
     showToast(`✅ Order marked as ${labels[status] || status}`);
+    await loadOrders();
+    updateStats();
+  };
+
+  window.deleteOrderById = async function (btn) {
+    const id = btn.getAttribute('data-id');
+    const o  = orders.find(x => String(x.id) === String(id));
+    if (!o) { showToast('Order not found', true); return; }
+
+    if (!confirm(`Xóa đơn hàng của "${o.customer_name}"?\nHành động này không thể hoàn tác.`)) return;
+
+    // Nếu đơn đang giữ sản phẩm → hỏi có muốn mở lại sản phẩm không
+    if (o.product_id && (o.status === 'pending' || o.status === 'confirmed')) {
+      const releaseProduct = confirm(
+        `Sản phẩm "${o.product_name || ''}" đang được giữ cho đơn này.\n\n` +
+        `OK = Mở lại sản phẩm về Available sau khi xóa đơn\n` +
+        `Cancel = Giữ nguyên trạng thái sản phẩm`
+      );
+      if (releaseProduct) {
+        await supabase.from('products').update({ status: 'available' }).eq('id', o.product_id);
+        await loadProducts();
+      }
+    }
+
+    const { error } = await supabase.from('orders').delete().eq('id', o.id);
+    if (error) {
+      console.error('Delete order error:', error);
+      showToast('❌ Lỗi: ' + error.message, true);
+      return;
+    }
+    showToast('🗑️ Đã xóa đơn hàng');
     await loadOrders();
     updateStats();
   };
