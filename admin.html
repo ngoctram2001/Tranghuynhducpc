@@ -121,7 +121,7 @@
   .image-upload-row { display: flex; gap: 12px; align-items: center; }
   .image-upload-row input[type=text] { flex: 1; }
   .upload-btn-wrap { position: relative; flex-shrink: 0; }
-  .upload-btn-wrap input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; pointer-events: auto; }
+  .upload-btn-wrap input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
   .upload-btn {
     background: var(--surface2); border: 1px solid var(--border); color: var(--text);
     padding: 11px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
@@ -324,7 +324,7 @@
         <label>Product image</label>
         <div class="image-upload-row">
           <input type="text" id="p-img" placeholder="https://... or upload a photo">
-          <div class="upload-btn-wrap">
+          <div class="upload-btn-wrap" id="upload-btn-wrap">
             <button type="button" class="upload-btn">📷 Upload photo</button>
             <input type="file" id="p-img-file" accept="image/*">
           </div>
@@ -396,8 +396,8 @@
 <script type="module">
   import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-  const SUPABASE_URL = 'https://bdnampbubuhxgfdirurl.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkbmFtcGJ1YnVoeGdmZGlydXJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MTM5NDYsImV4cCI6MjA5NzM4OTk0Nn0.I8iJKBuekbLJcymSyePHgmNNKiABbi2AtjMKMx0CZXk';
+  const SUPABASE_URL = 'https://ahquyhbbnrtdlaydrrnm.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFocXV5aGJibnJ0ZGxheWRycm5tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNzg1MTgsImV4cCI6MjA5Nzc1NDUxOH0.vf1pMfXU5b7gvnC9AiFChw96WQZQMHMEeTH8R5tcUj4';
   // SERVICE_KEY đã được xóa — dùng RLS policy "authenticated" thay thế
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -606,7 +606,11 @@
     }
 
     const { error } = await supabase.from('products').delete().eq('id', p.id);
-    if (error) { showToast('Error: ' + error.message, true); return; }
+    if (error) {
+      console.error('Delete product error:', error);
+      showToast('❌ Lỗi xóa sản phẩm: ' + (error.message || error.code || JSON.stringify(error)), true);
+      return;
+    }
 
     showToast(cancelRelated
       ? `🗑️ Đã xóa sản phẩm và hủy ${activeOrders.length} đơn liên quan`
@@ -657,10 +661,16 @@
     else { preview.classList.remove('show'); }
   });
 
-  // Image file upload
-  document.getElementById('p-img-file').addEventListener('change', async e => {
+  // Image file upload — dùng event delegation để luôn bắt được input sau khi clone
+  document.getElementById('upload-btn-wrap').addEventListener('change', async e => {
+    if (!e.target.matches('input[type=file]')) return;
     const file = e.target.files[0];
     if (!file) return;
+
+    // Clone + replace file input ngay lập tức để trả lại pointer-events cho modal
+    const oldInput = e.target;
+    const newInput = oldInput.cloneNode(true);
+    oldInput.parentNode.replaceChild(newInput, oldInput);
 
     const status     = document.getElementById('upload-status');
     const preview    = document.getElementById('image-preview');
@@ -697,17 +707,10 @@
       // Upload lỗi — vẫn cho nhập URL thủ công, không bị đơ
       status.textContent = '❌ Upload lỗi: ' + (err.message || 'Kiểm tra Storage bucket');
       status.style.color = 'var(--red)';
-      // Reset file input để có thể thử lại
-      e.target.value = '';
     } finally {
       // Luôn mở lại nút Save dù upload thành công hay lỗi
       saveBtn.disabled    = false;
       saveBtn.textContent = '💾 Save product';
-      // Blur file input để trả focus về trang, tránh block các input khác
-      e.target.blur();
-      e.target.value = '';
-      document.getElementById('p-desc').focus();
-      setTimeout(() => document.getElementById('p-desc').blur(), 50);
     }
   });
 
@@ -861,7 +864,7 @@
     const { error } = await supabase.from('orders').delete().eq('id', o.id);
     if (error) {
       console.error('Delete order error:', error);
-      showToast('❌ Lỗi: ' + error.message, true);
+      showToast('❌ Lỗi xóa đơn hàng: ' + (error.message || error.code || JSON.stringify(error)), true);
       return;
     }
     showToast('🗑️ Đã xóa đơn hàng');
