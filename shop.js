@@ -55,7 +55,7 @@ function renderCards(list) {
     return;
   }
   grid.innerHTML = list.map(p => `
-    <div class="card" onclick="openModal(${p.id})">
+    <div class="card" onclick="openModal('${p.id}')">
       <div class="card-img-wrap">
         ${statusPillHtml(p.status || 'available')}
         ${p.image_url
@@ -71,7 +71,7 @@ function renderCards(list) {
         <div class="card-price-label">Listed price</div>
       </div>
       <div class="card-footer">
-        <button class="order-btn" ${p.status !== 'available' ? 'disabled' : ''} onclick="event.stopPropagation();${p.status === 'available' ? `openModal(${p.id})` : ''}">
+        <button class="order-btn" ${p.status !== 'available' ? 'disabled' : ''} onclick="event.stopPropagation();${p.status === 'available' ? `openModal('${p.id}')` : ''}">
           ${p.status === 'available' ? 'View & order' : (p.status === 'reserved' ? 'Reserved' : 'Sold')}
         </button>
       </div>
@@ -124,7 +124,7 @@ function showNotFound() {
 }
 
 window.openModal = function(id) {
-  const p = products.find(x => x.id === id);
+  const p = products.find(x => String(x.id) === String(id));
   if (!p) return;
   currentProduct = p;
   const status = p.status || 'available';
