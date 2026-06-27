@@ -4,6 +4,10 @@
 
 import { supabase, MESSENGER_LINK } from './supabase-client.js';
 
+// Spam protection — 60 giây giữa 2 lần gửi
+let lastMessageSubmit = 0;
+const MESSAGE_COOLDOWN = 60 * 1000;
+
 // Messenger link
 document.getElementById('contact-messenger-btn').href = MESSENGER_LINK;
 
@@ -71,6 +75,14 @@ document.getElementById('contact-form-submit').addEventListener('click', async (
     return;
   }
 
+  // Cooldown check
+  const now = Date.now();
+  if (now - lastMessageSubmit < MESSAGE_COOLDOWN) {
+    const wait = Math.ceil((MESSAGE_COOLDOWN - (now - lastMessageSubmit)) / 1000);
+    showToast(`⏳ Vui lòng chờ ${wait}s trước khi gửi tiếp`, true);
+    return;
+  }
+
   const btn = document.getElementById('contact-form-submit');
   btn.disabled    = true;
   btn.textContent = 'Đang gửi...';
@@ -86,6 +98,7 @@ document.getElementById('contact-form-submit').addEventListener('click', async (
   }
 
   // Thành công
+  lastMessageSubmit = Date.now();
   document.getElementById('contact-form-view').classList.add('hidden');
   document.getElementById('contact-form-success').classList.remove('hidden');
   showToast('✅ Tin nhắn đã được gửi!');
