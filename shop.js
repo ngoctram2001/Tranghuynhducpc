@@ -279,11 +279,11 @@ document.getElementById('booking-submit-btn').addEventListener('click', async ()
   fetch('https://ntfy.sh/pcstore-perth-duc-7k2m9x', {
     method: 'POST',
     headers: {
-      'Title': '📦 Đơn hàng mới!',
+      'Title': 'Don hang moi!',
       'Priority': 'high',
       'Tags': 'shopping,bell'
     },
-    body: `Khách: ${name}\nSĐT: ${phone}\nSản phẩm: ${currentProduct.name}\nNgày lấy: ${date} lúc ${time}`
+    body: `Khach: ${name}\nSDT: ${phone}\nSan pham: ${currentProduct.name}\nNgay lay: ${date} luc ${time}`
   }).then(r => console.log('ntfy status:', r.status))
     .catch(err => console.error('ntfy error:', err));
 
