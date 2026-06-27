@@ -275,6 +275,7 @@ document.getElementById('booking-submit-btn').addEventListener('click', async ()
   await supabase.from('products').update({ status: 'reserved' }).eq('id', currentProduct.id);
 
   // Gửi thông báo ntfy
+  console.log('Sending ntfy...');
   fetch('https://ntfy.sh/pcstore-perth-duc-7k2m9x', {
     method: 'POST',
     headers: {
@@ -283,7 +284,8 @@ document.getElementById('booking-submit-btn').addEventListener('click', async ()
       'Tags': 'shopping,bell'
     },
     body: `Khách: ${name}\nSĐT: ${phone}\nSản phẩm: ${currentProduct.name}\nNgày lấy: ${date} lúc ${time}`
-  }).catch(() => {}); // Không block nếu ntfy lỗi
+  }).then(r => console.log('ntfy status:', r.status))
+    .catch(err => console.error('ntfy error:', err));
 
   btn.disabled = false;
   btn.textContent = 'Send order request';
