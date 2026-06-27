@@ -4,6 +4,33 @@
 
 import { supabase, formatPrice, isValidPhone, getPickupTimeOptions, MESSENGER_LINK } from './supabase-client.js';
 
+// Escape HTML để chống XSS
+function escHtml(str) {
+  if (!str && str !== 0) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ── Spam protection ───────────────────────────────────────────────────────
+const COOLDOWN_MS = 60 * 1000; // 60 giây giữa 2 lần submit
+const lastSubmit = { review: 0, order: 0 };
+
+function checkCooldown(type, label) {
+  const now = Date.now();
+  const diff = now - lastSubmit[type];
+  if (diff < COOLDOWN_MS) {
+    const wait = Math.ceil((COOLDOWN_MS - diff) / 1000);
+    showToast(`⏳ Vui lòng chờ ${wait}s trước khi ${label} tiếp theo`, true);
+    return false;
+  }
+  return true;
+}
+function setCooldown(type) { lastSubmit[type] = Date.now(); }
+
 let products = [];
 let currentStatusFilter = 'all';
 let currentProduct = null;
@@ -200,6 +227,32 @@ document.getElementById('booking-submit-btn').addEventListener('click', async ()
 
   const btn = document.getElementById('booking-submit-btn');
   btn.disabled = true;
+  btn.textContent = 'Checking availability...';
+
+  // ── Spam protection ──
+  if (!checkCooldown('order', 'đặt hàng')) {
+    btn.disabled    = false;
+    btn.textContent = 'Send order request';
+    return;
+  }
+
+  // ── Race condition fix: kiểm tra lại status ngay trước khi insert ──
+  const { data: freshProduct } = await supabase
+    .from('products')
+    .select('status')
+    .eq('id', currentProduct.id)
+    .single();
+
+  if (!freshProduct || freshProduct.status !== 'available') {
+    showToast('⚠️ Rất tiếc, sản phẩm này vừa được đặt bởi người khác!', true);
+    btn.disabled = false;
+    btn.textContent = 'Send order request';
+    // Reload để cập nhật trạng thái mới nhất
+    await loadProducts();
+    closeModal();
+    return;
+  }
+
   btn.textContent = 'Sending...';
 
   const { error: orderError } = await supabase.from('orders').insert({
@@ -224,6 +277,7 @@ document.getElementById('booking-submit-btn').addEventListener('click', async ()
   btn.disabled = false;
   btn.textContent = 'Send order request';
 
+  setCooldown('order');
   document.getElementById('booking-form-view').classList.add('hidden');
   document.getElementById('booking-success-view').classList.remove('hidden');
 
@@ -285,18 +339,18 @@ async function loadReviews() {
   grid.innerHTML = reviews.map(r => `
     <div class="review-card">
       <div class="review-top">
-        <div class="review-name">${r.name}</div>
+        <div class="review-name">${escHtml(r.name)}</div>
         <div class="review-date">${new Date(r.created_at).toLocaleDateString('en-AU')}</div>
       </div>
 
       <div class="review-stars">${starsHtml(r.rating)}</div>
-     ${r.product_name ? `<div style="font-size:12px;color:var(--accent);margin-bottom:6px;font-weight:600">🖥️ ${r.product_name}</div>` : ''}
-<div class="review-comment">${r.comment}</div>
+      ${r.product_name ? `<div style="font-size:12px;color:var(--accent);margin-bottom:6px;font-weight:600">🖥️ ${escHtml(r.product_name)}</div>` : ''}
+      <div class="review-comment">${escHtml(r.comment)}</div>
 
       ${r.admin_reply ? `
         <div class="review-reply">
           <div class="review-reply-label">💬 PCStore replied</div>
-          ${r.admin_reply}
+          ${escHtml(r.admin_reply)}
         </div>` : ''}
     </div>
   `).join('');
@@ -330,25 +384,35 @@ document.getElementById('rv-product-list').innerHTML =
 };
 
 document.getElementById('rv-submit').addEventListener('click', async () => {
-  const name = document.getElementById('rv-name').value.trim();
+  const name    = document.getElementById('rv-name').value.trim();
   const comment = document.getElementById('rv-comment').value.trim();
+
   if (!name || !comment || !selectedRating) {
     showToast('Please fill in all fields and select a rating', true);
     return;
   }
+  if (comment.length < 10) {
+    showToast('⚠️ Review quá ngắn, hãy mô tả thêm nhé!', true);
+    return;
+  }
+  if (!checkCooldown('review', 'gửi review')) return;
+
   const btn = document.getElementById('rv-submit');
-  btn.disabled = true;
+  btn.disabled    = true;
   btn.textContent = 'Submitting...';
 
   const product = document.getElementById('rv-product').value;
-const { error } = await supabase.from('reviews').insert({ 
-  name, rating: selectedRating, comment,
-  product_name: product || null
-}); 
+  const { error } = await supabase.from('reviews').insert({
+    name, rating: selectedRating, comment,
+    product_name: product || null
+  });
 
-  btn.disabled = false;
+  btn.disabled    = false;
   btn.textContent = 'Submit review';
+
   if (error) { showToast('Error: ' + error.message, true); return; }
+
+  setCooldown('review');
   closeModal('review-modal');
   showToast('✅ Review submitted, thank you!');
   loadReviews();
