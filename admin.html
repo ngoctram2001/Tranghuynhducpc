@@ -56,7 +56,24 @@
 
   /* TABS */
   .tabs { display: flex; gap: 4px; padding: 20px 24px 0; border-bottom: 1px solid var(--border); max-width: 1200px; margin: 0 auto; overflow-x: auto; }
-  .tab { padding: 10px 20px; font-size: 14px; font-weight: 500; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all .2s; white-space: nowrap; }
+  .tab-badge { display:inline-flex!important; align-items:center; justify-content:center; background:var(--accent); color:#fff; font-size:11px; font-weight:700; border-radius:99px; padding:1px 6px; margin-left:5px; min-width:18px; line-height:1.4; }
+
+  /* Overview product grid */
+  .ov-filter-btn { background:var(--surface2); border:1px solid var(--border); color:var(--muted); padding:6px 14px; border-radius:99px; font-size:13px; cursor:pointer; transition:all .2s; }
+  .ov-filter-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .ov-filter-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .ov-filter-btn span { font-weight:700; }
+  .ov-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; transition:border-color .2s; }
+  .ov-card:hover { border-color:var(--accent); }
+  .ov-card-img { width:100%; aspect-ratio:4/3; object-fit:cover; background:var(--surface2); display:block; }
+  .ov-card-img-fallback { width:100%; aspect-ratio:4/3; background:var(--surface2); display:flex; align-items:center; justify-content:center; font-size:36px; }
+  .ov-card-body { padding:10px 12px 12px; }
+  .ov-card-name { font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:4px; }
+  .ov-card-price { font-size:13px; color:var(--accent); font-weight:700; margin-bottom:6px; }
+  .ov-card-status { display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:99px; }
+  .ov-card-status.available { background:#1a3a2a; color:#4caf93; }
+  .ov-card-status.reserved  { background:#3a2e1a; color:#e0a84a; }
+  .ov-card-status.sold      { background:#3a1a1a; color:#e05a4a; }
   .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
   .tab-content { display: none; padding: 24px; max-width: 1200px; margin: 0 auto; }
@@ -194,10 +211,10 @@
 
   <div class="tabs">
     <div class="tab active" onclick="switchTab('dashboard')">📊 Overview</div>
-    <div class="tab" onclick="switchTab('products')">🖥️ Products</div>
-    <div class="tab" onclick="switchTab('orders')">📦 Orders</div>
-    <div class="tab" onclick="switchTab('messages')">💬 Messages</div>
-    <div class="tab" onclick="switchTab('reviews')">⭐ Reviews</div>
+    <div class="tab" onclick="switchTab('products')">🖥️ Products <span class="tab-badge" id="badge-products" style="display:none"></span></div>
+    <div class="tab" onclick="switchTab('orders')">📦 Orders <span class="tab-badge" id="badge-orders" style="display:none"></span></div>
+    <div class="tab" onclick="switchTab('messages')">💬 Messages <span class="tab-badge" id="badge-messages" style="display:none"></span></div>
+    <div class="tab" onclick="switchTab('reviews')">⭐ Reviews <span class="tab-badge" id="badge-reviews" style="display:none"></span></div>
   </div>
 
   <!-- DASHBOARD -->
@@ -208,12 +225,19 @@
       <div class="stat-card green"><div class="stat-card-num" id="s-done">—</div><div class="stat-card-label">Completed orders</div></div>
       <div class="stat-card orange"><div class="stat-card-num" id="s-newmsg">—</div><div class="stat-card-label">New messages</div></div>
     </div>
-    <div style="color:var(--muted);font-size:14px;line-height:1.8">
-      <strong style="color:var(--text)">Quick guide:</strong><br>
-      • Go to <strong>Products</strong> to add or edit a build<br>
-      • When a customer orders, create the order manually under <strong>Orders</strong> if needed<br>
-      • Update order status as you confirm or complete pickups<br>
-      • Reply to customer reviews under <strong>Reviews</strong>
+
+    <!-- PRODUCT OVERVIEW -->
+    <div style="margin-top:28px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+        <h2 style="font-family:'Space Grotesk',sans-serif;font-size:17px;font-weight:600">Tình trạng sản phẩm</h2>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="ov-filter-btn active" data-filter="all"     onclick="setOvFilter(this)">Tất cả <span id="ov-count-all">0</span></button>
+          <button class="ov-filter-btn"        data-filter="available" onclick="setOvFilter(this)">🟢 Còn hàng <span id="ov-count-available">0</span></button>
+          <button class="ov-filter-btn"        data-filter="reserved"  onclick="setOvFilter(this)">🟡 Đã đặt <span id="ov-count-reserved">0</span></button>
+          <button class="ov-filter-btn"        data-filter="sold"      onclick="setOvFilter(this)">🔴 Đã bán <span id="ov-count-sold">0</span></button>
+        </div>
+      </div>
+      <div id="ov-product-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px"></div>
     </div>
   </div>
 
@@ -222,6 +246,20 @@
     <div class="section-hdr">
       <h2>Manage products</h2>
       <button class="add-btn" onclick="openProductModal(null)">+ Add product</button>
+    </div>
+    <!-- FILTER BAR -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="product-search" placeholder="🔍  Tìm tên sản phẩm..."
+        oninput="applyProductFilter()"
+        style="flex:1;min-width:200px;background:#2b211a;border:1px solid #3d3024;border-radius:8px;padding:10px 14px;color:#f7f0e8;font-size:14px;font-family:inherit;">
+      <select id="product-status-filter" onchange="applyProductFilter()"
+        style="width:auto;padding:10px 14px;font-size:14px;border-radius:8px">
+        <option value="all">Tất cả trạng thái</option>
+        <option value="available">Available</option>
+        <option value="reserved">Reserved</option>
+        <option value="sold">Sold</option>
+      </select>
+      <div id="product-count" style="font-size:13px;color:#a8957f;white-space:nowrap"></div>
     </div>
     <div class="table-wrap">
       <table>
@@ -237,7 +275,10 @@
   <div class="tab-content" id="tab-orders">
     <div class="section-hdr">
       <h2>Orders</h2>
-      <button class="add-btn" onclick="openOrderModal()">+ Create order</button>
+      <div style="display:flex;gap:8px">
+        <button class="add-btn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text)" onclick="exportOrdersCSV()">📥 Export CSV</button>
+        <button class="add-btn" onclick="openOrderModal()">+ Create order</button>
+      </div>
     </div>
 
     <!-- FILTER BAR -->
@@ -270,6 +311,20 @@
     <div class="section-hdr">
       <h2>Messages</h2>
     </div>
+    <!-- FILTER BAR -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="msg-search" placeholder="🔍  Tìm tên hoặc nội dung..."
+        oninput="applyMessageFilter()"
+        style="flex:1;min-width:200px;background:#2b211a;border:1px solid #3d3024;border-radius:8px;padding:10px 14px;color:#f7f0e8;font-size:14px;font-family:inherit;">
+      <select id="msg-status-filter" onchange="applyMessageFilter()"
+        style="width:auto;padding:10px 14px;font-size:14px;border-radius:8px">
+        <option value="all">Tất cả trạng thái</option>
+        <option value="new">New</option>
+        <option value="read">Read</option>
+        <option value="replied">Replied</option>
+      </select>
+      <div id="msg-count" style="font-size:13px;color:#a8957f;white-space:nowrap"></div>
+    </div>
     <div class="table-wrap">
       <table>
         <thead><tr>
@@ -284,6 +339,22 @@
   <div class="tab-content" id="tab-reviews">
     <div class="section-hdr">
       <h2>Reviews</h2>
+    </div>
+    <!-- FILTER BAR -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+      <input type="text" id="review-search" placeholder="🔍  Tìm tên hoặc bình luận..."
+        oninput="applyReviewFilter()"
+        style="flex:1;min-width:200px;background:#2b211a;border:1px solid #3d3024;border-radius:8px;padding:10px 14px;color:#f7f0e8;font-size:14px;font-family:inherit;">
+      <select id="review-rating-filter" onchange="applyReviewFilter()"
+        style="width:auto;padding:10px 14px;font-size:14px;border-radius:8px">
+        <option value="all">Tất cả đánh giá</option>
+        <option value="5">⭐⭐⭐⭐⭐ 5 sao</option>
+        <option value="4">⭐⭐⭐⭐ 4 sao</option>
+        <option value="3">⭐⭐⭐ 3 sao</option>
+        <option value="2">⭐⭐ 2 sao</option>
+        <option value="1">⭐ 1 sao</option>
+      </select>
+      <div id="review-count" style="font-size:13px;color:#a8957f;white-space:nowrap"></div>
     </div>
     <div class="table-wrap">
       <table>
@@ -527,11 +598,75 @@
     renderReviewsTable();
   }
 
+  let ovFilter = 'all';
+
+  window.setOvFilter = function(btn) {
+    document.querySelectorAll('.ov-filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ovFilter = btn.getAttribute('data-filter');
+    renderOvGrid();
+  };
+
+  function renderOvGrid() {
+    const statusLabel = { available: 'Còn hàng', reserved: 'Đã đặt', sold: 'Đã bán' };
+    const grid = document.getElementById('ov-product-grid');
+    if (!grid) return;
+
+    // Cập nhật số đếm trên filter buttons
+    ['all','available','reserved','sold'].forEach(s => {
+      const el = document.getElementById('ov-count-' + s);
+      if (el) el.textContent = s === 'all' ? products.length : products.filter(p => (p.status||'available') === s).length;
+    });
+
+    const list = ovFilter === 'all' ? products : products.filter(p => (p.status||'available') === ovFilter);
+
+    if (!list.length) {
+      grid.innerHTML = `<div style="grid-column:1/-1;color:var(--muted);font-size:14px;padding:20px 0">Không có sản phẩm nào.</div>`;
+      return;
+    }
+
+    grid.innerHTML = list.map(p => {
+      const st = p.status || 'available';
+      const imgHtml = p.image_url
+        ? `<img class="ov-card-img" src="${p.image_url}" alt="${escHtml(p.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">\n<div class="ov-card-img-fallback" style="display:none">🖥️</div>`
+        : `<div class="ov-card-img-fallback">🖥️</div>`;
+      return `<div class="ov-card">
+        ${imgHtml}
+        <div class="ov-card-body">
+          <div class="ov-card-name" title="${escHtml(p.name)}">${escHtml(p.name)}</div>
+          <div class="ov-card-price">${formatPrice(p.price)}</div>
+          <span class="ov-card-status ${st}">${statusLabel[st]||st}</span>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
   function updateStats() {
+    const pendingOrders  = orders.filter(o => o.status === 'pending').length;
+    const doneOrders     = orders.filter(o => o.status === 'done').length;
+    const newMessages    = messages.filter(m => m.status === 'new').length;
+    const availProducts  = products.filter(p => p.status === 'available').length;
+
     document.getElementById('s-products').textContent = products.length;
-    document.getElementById('s-pending').textContent  = orders.filter(o => o.status === 'pending').length;
-    document.getElementById('s-done').textContent     = orders.filter(o => o.status === 'done').length;
-    document.getElementById('s-newmsg').textContent   = messages.filter(m => m.status === 'new').length;
+    document.getElementById('s-pending').textContent  = pendingOrders;
+    document.getElementById('s-done').textContent     = doneOrders;
+    document.getElementById('s-newmsg').textContent   = newMessages;
+
+    // Tab badges
+    setBadge('badge-products', availProducts);
+    setBadge('badge-orders',   pendingOrders);
+    setBadge('badge-messages', newMessages);
+    setBadge('badge-reviews',  reviews.filter(r => !r.admin_reply).length);
+
+    // Overview grid
+    renderOvGrid();
+  }
+
+  function setBadge(id, count) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (count > 0) { el.textContent = count; el.style.display = 'inline-flex'; }
+    else { el.style.display = 'none'; }
   }
 
   function formatPrice(p) {
@@ -540,27 +675,27 @@
 
   // ─── PRODUCTS TABLE ───────────────────────────────────────────────────────
   function renderProductsTable() {
-    const tb = document.getElementById('products-table');
-    const statusLabel = { available: 'Available', reserved: 'Reserved', sold: 'Sold' };
-    if (!products.length) {
-      tb.innerHTML = '<tr class="empty-row"><td colspan="5">No products yet — add your first one!</td></tr>';
-      return;
+    // Gọi qua filter để giữ trạng thái filter nếu đang active
+    if (document.getElementById('product-search')) {
+      applyProductFilter();
+    } else {
+      const tb = document.getElementById('products-table');
+      const statusLabel = { available: 'Available', reserved: 'Reserved', sold: 'Sold' };
+      if (!products.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="5">No products yet — add your first one!</td></tr>'; return; }
+      tb.innerHTML = products.map(p => {
+        const status = p.status || 'available';
+        return `<tr>
+          <td class="td-name">${escHtml(p.name)}</td>
+          <td>${escHtml(p.category || '—')}</td>
+          <td class="td-price">${formatPrice(p.price)}</td>
+          <td><span class="status ${status}">${statusLabel[status]}</span></td>
+          <td><div class="action-btns">
+            <button class="edit-btn" data-id="${p.id}" onclick="editProductById(this)">✏️ Edit</button>
+            <button class="del-btn"  data-id="${p.id}" onclick="deleteProductById(this)">🗑️ Delete</button>
+          </div></td>
+        </tr>`;
+      }).join('');
     }
-    // FIX: use data-id attribute instead of passing id into onclick string
-    tb.innerHTML = products.map(p => {
-      const status = p.status || 'available';
-      return `
-      <tr>
-        <td class="td-name">${escHtml(p.name)}</td>
-        <td>${escHtml(p.category || '—')}</td>
-        <td class="td-price">${formatPrice(p.price)}</td>
-        <td><span class="status ${status}">${statusLabel[status]}</span></td>
-        <td><div class="action-btns">
-          <button class="edit-btn" data-id="${p.id}" onclick="editProductById(this)">✏️ Edit</button>
-          <button class="del-btn"  data-id="${p.id}" onclick="deleteProductById(this)">🗑️ Delete</button>
-        </div></td>
-      </tr>`;
-    }).join('');
   }
 
   // FIX: read id from element attribute so type is always correct
@@ -577,31 +712,12 @@
     const p  = products.find(x => String(x.id) === String(id));
     if (!p) { showToast('Product not found', true); return; }
 
-    // Kiểm tra có đơn hàng Pending/Confirmed liên quan không
-    const activeOrders = orders.filter(o =>
-      String(o.product_id) === String(p.id) &&
-      (o.status === 'pending' || o.status === 'confirmed')
-    );
+    if (!confirm(`Xóa sản phẩm "${p.name}"?\nTất cả đơn hàng liên quan sẽ bị xóa luôn.`)) return;
 
-    let cancelRelated = false;
-    if (activeOrders.length > 0) {
-      const choice = confirm(
-        `"${p.name}" đang có ${activeOrders.length} đơn hàng Pending/Confirmed.\n\n` +
-        `OK = Xóa sản phẩm VÀ hủy các đơn liên quan\n` +
-        `Cancel = Giữ nguyên đơn hàng, chỉ xóa sản phẩm`
-      );
-      // null = người dùng bấm X (thoát) → không làm gì
-      if (choice === null) return;
-      cancelRelated = choice;
-    } else {
-      if (!confirm(`Xóa sản phẩm "${p.name}"?`)) return;
-    }
-
-    // Hủy các đơn liên quan nếu admin chọn OK
-    if (cancelRelated && activeOrders.length > 0) {
-      for (const o of activeOrders) {
-        await supabase.from('orders').update({ status: 'cancelled' }).eq('id', o.id);
-      }
+    // Xóa toàn bộ đơn hàng liên quan
+    const relatedOrders = orders.filter(o => String(o.product_id) === String(p.id));
+    for (const o of relatedOrders) {
+      await supabase.from('orders').delete().eq('id', o.id);
     }
 
     const { error } = await supabase.from('products').delete().eq('id', p.id);
@@ -611,9 +727,9 @@
       return;
     }
 
-    showToast(cancelRelated
-      ? `🗑️ Đã xóa sản phẩm và hủy ${activeOrders.length} đơn liên quan`
-      : '🗑️ Product deleted');
+    showToast(relatedOrders.length > 0
+      ? `🗑️ Đã xóa sản phẩm và ${relatedOrders.length} đơn hàng liên quan`
+      : '🗑️ Đã xóa sản phẩm');
     await loadProducts();
     await loadOrders();
     updateStats();
@@ -751,7 +867,7 @@
     tb.innerHTML = data.map(o => `
       <tr>
         <td><strong>${escHtml(o.customer_name)}</strong></td>
-        <td>${escHtml(o.customer_phone)}</td>
+        <td>${escHtml(o.customer_phone)} <button onclick="copyText('${escHtml(o.customer_phone)}')" title="Copy SĐT" style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 4px;opacity:.6" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">📋</button></td>
         <td>${escHtml(o.product_name || '—')}</td>
         <td style="color:var(--muted)">${o.pickup_date ? `${o.pickup_date} · ${o.pickup_time || ''}` : '—'}</td>
         <td><span class="status ${o.status}">${statusLabel[o.status] || o.status}</span></td>
@@ -768,6 +884,127 @@
         </td>
       </tr>`).join('');
   }
+
+  window.applyProductFilter = function() {
+    const keyword = (document.getElementById('product-search').value || '').toLowerCase().trim();
+    const status  = document.getElementById('product-status-filter').value;
+    const filtered = products.filter(p => {
+      const matchSearch = !keyword || (p.name || '').toLowerCase().includes(keyword) || (p.category || '').toLowerCase().includes(keyword);
+      const matchStatus = status === 'all' || (p.status || 'available') === status;
+      return matchSearch && matchStatus;
+    });
+    const tb = document.getElementById('products-table');
+    const statusLabel = { available: 'Available', reserved: 'Reserved', sold: 'Sold' };
+    if (!filtered.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="5">Không tìm thấy sản phẩm nào</td></tr>'; }
+    else {
+      tb.innerHTML = filtered.map(p => {
+        const st = p.status || 'available';
+        return `<tr>
+          <td class="td-name">${escHtml(p.name)}</td>
+          <td>${escHtml(p.category || '—')}</td>
+          <td class="td-price">${formatPrice(p.price)}</td>
+          <td><span class="status ${st}">${statusLabel[st]}</span></td>
+          <td><div class="action-btns">
+            <button class="edit-btn" data-id="${p.id}" onclick="editProductById(this)">✏️ Edit</button>
+            <button class="del-btn"  data-id="${p.id}" onclick="deleteProductById(this)">🗑️ Delete</button>
+          </div></td>
+        </tr>`;
+      }).join('');
+    }
+    const countEl = document.getElementById('product-count');
+    countEl.textContent = (keyword || status !== 'all') ? `Hiển thị ${filtered.length} / ${products.length} sản phẩm` : `Tổng: ${products.length} sản phẩm`;
+  };
+
+  window.applyMessageFilter = function() {
+    const keyword = (document.getElementById('msg-search').value || '').toLowerCase().trim();
+    const status  = document.getElementById('msg-status-filter').value;
+    const filtered = messages.filter(m => {
+      const matchSearch = !keyword || (m.name || '').toLowerCase().includes(keyword) || (m.message || '').toLowerCase().includes(keyword) || (m.contact || '').toLowerCase().includes(keyword);
+      const matchStatus = status === 'all' || m.status === status;
+      return matchSearch && matchStatus;
+    });
+    const tb = document.getElementById('messages-table');
+    if (!filtered.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="5">Không tìm thấy tin nhắn nào</td></tr>'; return; }
+    tb.innerHTML = filtered.map(m => {
+      const date = new Date(m.created_at);
+      const dateStr = date.toLocaleDateString('en-AU') + ' ' + date.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
+      return `<tr>
+        <td><strong>${escHtml(m.name)}</strong></td>
+        <td>${escHtml(m.contact)}</td>
+        <td style="max-width:300px;white-space:normal">${escHtml(m.message)}</td>
+        <td style="color:var(--muted);white-space:nowrap">${dateStr}</td>
+        <td>
+          <select data-id="${m.id}" onchange="updateMessageStatus(this)" style="padding:6px 10px;font-size:12px;width:auto">
+            <option value="new"     ${m.status==='new'     ?'selected':''}>New</option>
+            <option value="read"    ${m.status==='read'    ?'selected':''}>Read</option>
+            <option value="replied" ${m.status==='replied' ?'selected':''}>Replied</option>
+          </select>
+        </td>
+      </tr>`;
+    }).join('');
+    const countEl = document.getElementById('msg-count');
+    countEl.textContent = (keyword || status !== 'all') ? `Hiển thị ${filtered.length} / ${messages.length} tin` : `Tổng: ${messages.length} tin`;
+  };
+
+  window.applyReviewFilter = function() {
+    const keyword = (document.getElementById('review-search').value || '').toLowerCase().trim();
+    const rating  = document.getElementById('review-rating-filter').value;
+    const filtered = reviews.filter(r => {
+      const matchSearch = !keyword || (r.name || '').toLowerCase().includes(keyword) || (r.comment || '').toLowerCase().includes(keyword);
+      const matchRating = rating === 'all' || String(r.rating) === rating;
+      return matchSearch && matchRating;
+    });
+    const tb = document.getElementById('reviews-table');
+    if (!filtered.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="6">Không tìm thấy review nào</td></tr>'; return; }
+    tb.innerHTML = filtered.map(r => {
+      const stars = '⭐'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+      const date  = new Date(r.created_at).toLocaleDateString('en-AU');
+      const replyHtml = r.admin_reply ? `<div style="margin-top:6px;font-size:12px;color:var(--accent);font-style:italic">↩ ${escHtml(r.admin_reply)}</div>` : '';
+      return `<tr>
+        <td><strong>${escHtml(r.name)}</strong></td>
+        <td style="color:var(--muted)">${escHtml(r.product_name || '—')}</td>
+        <td>${stars}</td>
+        <td style="max-width:200px;white-space:normal">${escHtml(r.comment)}${replyHtml}</td>
+        <td style="color:var(--muted);white-space:nowrap">${date}</td>
+        <td><div class="action-btns">
+          <button class="edit-btn" data-id="${r.id}" onclick="openReplyModalById(this)">💬 Reply</button>
+          <button class="del-btn"  data-id="${r.id}" onclick="deleteReviewById(this)">🗑️ Delete</button>
+        </div></td>
+      </tr>`;
+    }).join('');
+    const countEl = document.getElementById('review-count');
+    countEl.textContent = (keyword || rating !== 'all') ? `Hiển thị ${filtered.length} / ${reviews.length} review` : `Tổng: ${reviews.length} review`;
+  };
+
+  window.copyText = function(text) {
+    navigator.clipboard.writeText(text).then(() => showToast('✅ Đã copy: ' + text));
+  };
+
+  window.exportOrdersCSV = function() {
+    if (!orders.length) { showToast('Không có đơn hàng nào để export', true); return; }
+
+    const headers = ['Tên khách', 'Số điện thoại', 'Sản phẩm', 'Ngày lấy', 'Giờ lấy', 'Trạng thái', 'Ngày đặt'];
+    const rows = orders.map(o => [
+      o.customer_name   || '',
+      o.customer_phone  || '',
+      o.product_name    || '',
+      o.pickup_date     || '',
+      o.pickup_time     || '',
+      o.status          || '',
+      o.created_at ? new Date(o.created_at).toLocaleDateString('en-AU') : ''
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`));
+
+    const csv  = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const date = new Date().toISOString().slice(0,10);
+    a.href     = url;
+    a.download = `orders-${date}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`✅ Đã export ${orders.length} đơn hàng`);
+  };
 
   window.applyOrderFilter = function() {
     const keyword = (document.getElementById('order-search').value || '').toLowerCase().trim();
@@ -838,17 +1075,10 @@
 
     if (!confirm(`Xóa đơn hàng của "${o.customer_name}"?\nHành động này không thể hoàn tác.`)) return;
 
-    // Nếu đơn đang giữ sản phẩm → hỏi có muốn mở lại sản phẩm không
+    // Nếu đơn đang giữ sản phẩm → tự động mở lại về Available
     if (o.product_id && (o.status === 'pending' || o.status === 'confirmed')) {
-      const releaseProduct = confirm(
-        `Sản phẩm "${o.product_name || ''}" đang được giữ cho đơn này.\n\n` +
-        `OK = Mở lại sản phẩm về Available sau khi xóa đơn\n` +
-        `Cancel = Giữ nguyên trạng thái sản phẩm`
-      );
-      if (releaseProduct) {
-        await supabase.from('products').update({ status: 'available' }).eq('id', o.product_id);
-        await loadProducts();
-      }
+      await supabase.from('products').update({ status: 'available' }).eq('id', o.product_id);
+      await loadProducts();
     }
 
     const { error } = await supabase.from('orders').delete().eq('id', o.id);
@@ -912,26 +1142,7 @@
 
   // ─── MESSAGES TABLE ───────────────────────────────────────────────────────
   function renderMessagesTable() {
-    const tb = document.getElementById('messages-table');
-    if (!messages.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="5">No messages yet.</td></tr>'; return; }
-    tb.innerHTML = messages.map(m => {
-      const date    = new Date(m.created_at);
-      const dateStr = date.toLocaleDateString('en-AU') + ' ' + date.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
-      return `
-      <tr>
-        <td><strong>${escHtml(m.name)}</strong></td>
-        <td>${escHtml(m.contact)}</td>
-        <td style="max-width:300px;white-space:normal">${escHtml(m.message)}</td>
-        <td style="color:var(--muted);white-space:nowrap">${dateStr}</td>
-        <td>
-          <select data-id="${m.id}" onchange="updateMessageStatus(this)" style="padding:6px 10px;font-size:12px;width:auto">
-            <option value="new"     ${m.status==='new'     ?'selected':''}>New</option>
-            <option value="read"    ${m.status==='read'    ?'selected':''}>Read</option>
-            <option value="replied" ${m.status==='replied' ?'selected':''}>Replied</option>
-          </select>
-        </td>
-      </tr>`;
-    }).join('');
+    applyMessageFilter();
   }
 
   window.updateMessageStatus = async function (sel) {
@@ -946,29 +1157,7 @@
 
   // ─── REVIEWS TABLE ────────────────────────────────────────────────────────
   function renderReviewsTable() {
-    const tb = document.getElementById('reviews-table');
-    if (!reviews.length) { tb.innerHTML = '<tr class="empty-row"><td colspan="6">No reviews yet.</td></tr>'; return; }
-    tb.innerHTML = reviews.map(r => {
-      const stars = '⭐'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
-      const date  = new Date(r.created_at).toLocaleDateString('en-AU');
-      const replyHtml = r.admin_reply
-        ? `<div style="margin-top:6px;font-size:12px;color:var(--accent);font-style:italic">↩ ${escHtml(r.admin_reply)}</div>`
-        : '';
-      return `
-      <tr>
-        <td><strong>${escHtml(r.name)}</strong></td>
-        <td style="color:var(--muted)">${escHtml(r.product_name || '—')}</td>
-        <td>${stars}</td>
-        <td style="max-width:200px;white-space:normal">${escHtml(r.comment)}${replyHtml}</td>
-        <td style="color:var(--muted);white-space:nowrap">${date}</td>
-        <td>
-          <div class="action-btns">
-            <button class="edit-btn" data-id="${r.id}" onclick="openReplyModalById(this)">💬 Reply</button>
-            <button class="del-btn"  data-id="${r.id}" onclick="deleteReviewById(this)">🗑️ Delete</button>
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
+    applyReviewFilter();
   }
 
   // FIX: use data-id to avoid string/number mismatch
