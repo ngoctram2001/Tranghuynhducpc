@@ -89,6 +89,19 @@ document.getElementById('contact-form-submit').addEventListener('click', async (
 
   const { error } = await supabase.from('messages').insert({ name, contact, message });
 
+  if (!error) {
+    // Gửi thông báo ntfy
+    fetch('https://ntfy.sh/pcstore-perth-duc-7k2m9x', {
+      method: 'POST',
+      headers: {
+        'Title': 'Tin nhan moi tu khach!',
+        'Priority': 'default',
+        'Tags': 'email,bell'
+      },
+      body: `Tu: ${name}\nLien he: ${contact}\nNoi dung: ${message}`
+    }).catch(() => {});
+  }
+
   btn.disabled    = false;
   btn.textContent = 'Send message';
 
