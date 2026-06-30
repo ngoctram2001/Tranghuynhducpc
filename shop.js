@@ -418,8 +418,10 @@ window.openReviewModal = function() {
   document.getElementById('rv-name').value = '';
   // Populate product dropdown
  document.getElementById('rv-product').value = '';
-document.getElementById('rv-product-list').innerHTML =
-  products.filter(p => p.status === 'sold').map(p => `<option value="${p.name}">`).join('');
+const soldProducts = products.filter(p => p.status === 'sold');
+document.getElementById('rv-product').innerHTML =
+  '<option value="">-- Chọn sản phẩm bạn đã mua --</option>' +
+  soldProducts.map(p => `<option value="${escHtml(p.name)}">${escHtml(p.name)}</option>`).join('');
 
   document.getElementById('rv-comment').value = '';
   selectedRating = 0;
@@ -433,8 +435,14 @@ document.getElementById('rv-submit').addEventListener('click', async () => {
   const name    = document.getElementById('rv-name').value.trim();
   const comment = document.getElementById('rv-comment').value.trim();
 
+  const product = document.getElementById('rv-product').value;
+
   if (!name || !comment || !selectedRating) {
     showToast('Please fill in all fields and select a rating', true);
+    return;
+  }
+  if (!product) {
+    showToast('⚠️ Vui lòng chọn sản phẩm bạn đã mua để đánh giá', true);
     return;
   }
   if (comment.length < 10) {
@@ -447,10 +455,9 @@ document.getElementById('rv-submit').addEventListener('click', async () => {
   btn.disabled    = true;
   btn.textContent = 'Submitting...';
 
-  const product = document.getElementById('rv-product').value;
   const { error } = await supabase.from('reviews').insert({
     name, rating: selectedRating, comment,
-    product_name: product || null
+    product_name: product
   });
 
   btn.disabled    = false;
