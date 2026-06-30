@@ -6,17 +6,17 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #16110d;
-  --surface: #221a14;
-  --surface2: #2b211a;
-  --border: #3d3024;
-  --accent: #ff5722;
-  --accent2: #ffab40;
-  --text: #f7f0e8;
-  --muted: #a8957f;
-  --green: #4ade80;
-  --yellow: #fbbf24;
-  --red: #f87171;
+  --bg: #f5f1eb;
+  --surface: #ffffff;
+  --surface2: #efe8de;
+  --border: #e0d6c8;
+  --accent: #e8491e;
+  --accent2: #ff8c42;
+  --text: #2c1f14;
+  --muted: #8a7060;
+  --green: #1e8a5a;
+  --yellow: #c97a10;
+  --red: #d63030;
   --radius: 14px;
 }
 
@@ -27,7 +27,7 @@ a { color: inherit; }
 
 /* ============ NAV ============ */
 nav {
-  background: rgba(22,17,13,.92);
+  background: rgba(255,255,255,.92);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
   padding: 0 24px;
@@ -93,6 +93,21 @@ nav {
 }
 .filter-btn.active { border-color: var(--accent); color: #fff; background: var(--accent); }
 .filter-btn:hover:not(.active) { border-color: var(--accent); color: var(--accent); }
+
+.price-filter-select {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  padding: 9px 14px; border-radius: 99px; font-size: 13px; font-family: inherit; cursor: pointer;
+}
+.price-filter-select:hover { border-color: var(--accent); }
+
+.sale-badge {
+  position: absolute; top: 12px; right: 12px; background: #d63030; color: #fff;
+  font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 6px; z-index: 2;
+  letter-spacing: .5px; box-shadow: 0 2px 8px rgba(214,48,48,.4);
+}
+.card-price-row { display: flex; align-items: baseline; gap: 8px; margin-top: auto; }
+.card-price-original { font-size: 14px; color: var(--muted); text-decoration: line-through; }
+.card-price-sale { font-size: 21px; font-weight: 700; color: #d63030; font-family: 'Space Grotesk', sans-serif; }
 .filter-dot { width: 7px; height: 7px; border-radius: 50%; }
 
 /* ============ PRODUCT GRID / CARD (index.html) ============ */
