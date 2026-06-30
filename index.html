@@ -39,9 +39,12 @@
     PC<span>Store</span>
   </a>
   <div class="nav-links" id="nav-links">
-    <a class="nav-link active" href="index.html">Products</a>
+    <a class="nav-link active" href="index.html">All Products</a>
+    <a class="nav-link" href="specials.html">Specials and Promotions</a>
     <a class="nav-link" href="info.html">Build Guide</a>
-    <a class="nav-link" href="contact.html">Contact</a>
+    <a class="nav-link" href="contact.html">Contact Us</a>
+    <a class="nav-link" href="https://www.facebook.com/duc.trang.775" target="_blank" rel="noopener">Facebook page</a>
+    <a class="nav-link" href="https://www.facebook.com/duc.trang.775" target="_blank" rel="noopener">Facebook Reviews</a>
   </div>
   <button class="nav-toggle" id="nav-toggle">☰</button>
 </nav>
@@ -71,6 +74,13 @@
     <button class="filter-btn" data-status="available"><span class="filter-dot" style="background:var(--green)"></span>Available</button>
     <button class="filter-btn" data-status="reserved"><span class="filter-dot" style="background:var(--yellow)"></span>Reserved</button>
     <button class="filter-btn" data-status="sold"><span class="filter-dot" style="background:var(--red)"></span>Sold</button>
+    <select id="price-filter" class="price-filter-select">
+      <option value="all">All prices</option>
+      <option value="0-500">Under $500</option>
+      <option value="500-1000">$500 – $1000</option>
+      <option value="1000-2000">$1000 – $2000</option>
+      <option value="2000-99999">$2000+</option>
+    </select>
   </div>
   <div id="products-grid" class="grid">
     <div class="loading"><div class="spinner"></div>Loading builds...</div>
