@@ -9,7 +9,7 @@ export const SUPABASE_URL = 'https://ahquyhbbnrtdlaydrrnm.supabase.co';
 export const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFocXV5aGJibnJ0ZGxheWRycm5tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIxNzg1MTgsImV4cCI6MjA5Nzc1NDUxOH0.vf1pMfXU5b7gvnC9AiFChw96WQZQMHMEeTH8R5tcUj4';
 
 // ⚠️ Update this when you set up a Facebook Page (m.me only works with Pages, not personal profiles)
-export const MESSENGER_LINK = 'https://m.me/TTNgocTramvn2001';
+export const MESSENGER_LINK = 'https://m.me/codepcstore';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
