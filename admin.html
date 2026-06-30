@@ -378,6 +378,9 @@
       <div class="form-group"><label>Product name *</label><input type="text" id="p-name" placeholder="e.g. Gaming PC RTX 4060"></div>
       <div class="form-row">
         <div class="form-group"><label>Price (AUD) *</label><input type="number" id="p-price" placeholder="1200"></div>
+        <div class="form-group"><label>Sale price (AUD)</label><input type="number" id="p-sale-price" placeholder="Để trống nếu không sale"></div>
+      </div>
+      <div class="form-row">
         <div class="form-group"><label>Status</label>
           <select id="p-status">
             <option value="available">Available</option>
@@ -385,10 +388,11 @@
             <option value="sold">Sold</option>
           </select>
         </div>
+        <div class="form-group"><label>Category</label><input type="text" id="p-category" placeholder="e.g. Gaming, Office, Editing"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Category</label><input type="text" id="p-category" placeholder="e.g. Gaming, Office, Editing"></div>
         <div class="form-group"><label>Warranty</label><input type="text" id="p-warranty" placeholder="e.g. 6 month"></div>
+        <div class="form-group"></div>
       </div>
       <div class="form-group">
         <label>Product image</label>
@@ -626,14 +630,16 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
     grid.innerHTML = list.map(p => {
       const st = p.status || 'available';
+      const hasSale = p.sale_price && p.sale_price > 0 && p.sale_price < p.price;
       const imgHtml = p.image_url
         ? `<img class="ov-card-img" src="${p.image_url}" alt="${escHtml(p.name)}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">\n<div class="ov-card-img-fallback" style="display:none">🖥️</div>`
         : `<div class="ov-card-img-fallback">🖥️</div>`;
-      return `<div class="ov-card">
+      return `<div class="ov-card" style="position:relative">
+        ${hasSale ? '<div style="position:absolute;top:8px;right:8px;background:#d63030;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;z-index:2">SALE</div>' : ''}
         ${imgHtml}
         <div class="ov-card-body">
           <div class="ov-card-name" title="${escHtml(p.name)}">${escHtml(p.name)}</div>
-          <div class="ov-card-price">${formatPrice(p.price)}</div>
+          <div class="ov-card-price">${salePriceHtml(p)}</div>
           <span class="ov-card-status ${st}">${statusLabel[st]||st}</span>
         </div>
       </div>`;
@@ -673,6 +679,14 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
   }
 
   // ─── PRODUCTS TABLE ───────────────────────────────────────────────────────
+  function salePriceHtml(p) {
+    const hasSale = p.sale_price && p.sale_price > 0 && p.sale_price < p.price;
+    if (hasSale) {
+      return `<span style="text-decoration:line-through;color:var(--muted);font-size:.85em;margin-right:6px">${formatPrice(p.price)}</span><span style="color:#d63030;font-weight:700">${formatPrice(p.sale_price)}</span>`;
+    }
+    return formatPrice(p.price);
+  }
+
   function renderProductsTable() {
     // Gọi qua filter để giữ trạng thái filter nếu đang active
     if (document.getElementById('product-search')) {
@@ -686,7 +700,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
         return `<tr>
           <td class="td-name">${escHtml(p.name)}</td>
           <td>${escHtml(p.category || '—')}</td>
-          <td class="td-price">${formatPrice(p.price)}</td>
+          <td class="td-price">${salePriceHtml(p)}</td>
           <td><span class="status ${status}">${statusLabel[status]}</span></td>
           <td><div class="action-btns">
             <button class="edit-btn" data-id="${p.id}" onclick="editProductById(this)">✏️ Edit</button>
@@ -746,6 +760,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
     if (isEdit) {
       document.getElementById('p-name').value     = product.name || '';
       document.getElementById('p-price').value    = product.price || '';
+      document.getElementById('p-sale-price').value = product.sale_price || '';
       document.getElementById('p-status').value   = product.status || 'available';
       document.getElementById('p-category').value = product.category || '';
       document.getElementById('p-warranty').value = product.warranty || '';
@@ -757,7 +772,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
         preview.classList.add('show');
       }
     } else {
-      ['p-name','p-price','p-category','p-warranty','p-img','p-desc','p-specs'].forEach(id => {
+      ['p-name','p-price','p-sale-price','p-category','p-warranty','p-img','p-desc','p-specs'].forEach(id => {
         document.getElementById(id).value = '';
       });
       document.getElementById('p-status').value = 'available';
@@ -821,9 +836,11 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
   window.saveProduct = async function () {
     const rawId = document.getElementById('product-id').value;
+    const salePriceRaw = document.getElementById('p-sale-price').value.trim();
     const data = {
       name:        document.getElementById('p-name').value.trim(),
       price:       parseFloat(document.getElementById('p-price').value),
+      sale_price:  salePriceRaw ? parseFloat(salePriceRaw) : null,
       status:      document.getElementById('p-status').value,
       category:    document.getElementById('p-category').value.trim(),
       warranty:    document.getElementById('p-warranty').value.trim(),
@@ -833,6 +850,10 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
     };
     if (!data.name)         { showToast('Please enter a product name', true); return; }
     if (isNaN(data.price))  { showToast('Please enter a valid price', true); return; }
+    if (data.sale_price !== null && data.sale_price >= data.price) {
+      showToast('⚠️ Giá sale phải nhỏ hơn giá gốc', true);
+      return;
+    }
 
     const btn = document.getElementById('save-product-btn');
     btn.disabled = true;
@@ -904,7 +925,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
         return `<tr>
           <td class="td-name">${escHtml(p.name)}</td>
           <td>${escHtml(p.category || '—')}</td>
-          <td class="td-price">${formatPrice(p.price)}</td>
+          <td class="td-price">${salePriceHtml(p)}</td>
           <td><span class="status ${st}">${statusLabel[st]}</span></td>
           <td><div class="action-btns">
             <button class="edit-btn" data-id="${p.id}" onclick="editProductById(this)">✏️ Edit</button>
@@ -1018,7 +1039,13 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       : '<div style="color:#888">—</div>';
 
     const price = prod.price ? prod.price : 0;
-    const priceFormatted = price ? new Intl.NumberFormat('en-AU', { style:'currency', currency:'AUD' }).format(price) : '';
+    const hasSale = prod.sale_price && prod.sale_price > 0 && prod.sale_price < price;
+    const discount = hasSale ? (price - prod.sale_price) : 0;
+    const total = hasSale ? prod.sale_price : price;
+    const fmtMoney = v => new Intl.NumberFormat('en-AU', { style:'currency', currency:'AUD' }).format(v);
+    const priceFormatted    = price ? fmtMoney(price) : '';
+    const discountFormatted = hasSale ? fmtMoney(discount) : '';
+    const totalFormatted    = price ? fmtMoney(total) : '';
 
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -1106,13 +1133,13 @@ function downloadImage(){
       <td>Used Custom Built PC${prod.name ? ' — ' + prod.name : ''}</td>
       <td style="text-align:center">1</td>
       <td style="text-align:right">${priceFormatted}</td>
+      <td style="text-align:right">${discountFormatted}</td>
       <td style="text-align:right"></td>
-      <td style="text-align:right"></td>
-      <td style="text-align:right"></td>
+      <td style="text-align:right">${totalFormatted}</td>
     </tr>
     <tr>
       <td colspan="5" class="no-border" style="border:none;text-align:right;font-weight:bold">Total Amount:</td>
-      <td class="no-border" style="border-top:2px solid #000;text-align:right;font-weight:bold;font-size:11px"></td>
+      <td class="no-border" style="border-top:2px solid #000;text-align:right;font-weight:bold;font-size:11px">${totalFormatted}</td>
     </tr>
   </tbody>
 </table>
