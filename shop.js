@@ -33,6 +33,7 @@ function setCooldown(type) { lastSubmit[type] = Date.now(); }
 
 let products = [];
 let currentStatusFilter = 'all';
+let currentPriceFilter = 'all';
 let currentProduct = null;
 
 document.getElementById('floating-messenger-btn').href = MESSENGER_LINK;
@@ -48,15 +49,29 @@ function statusPillHtml(status) {
   return `<span class="status-pill ${s.class}"><span class="dot"></span>${s.text}</span>`;
 }
 
+function priceBlockHtml(p) {
+  const hasSale = p.sale_price && p.sale_price > 0 && p.sale_price < p.price;
+  if (hasSale) {
+    return `<div class="card-price-row">
+      <span class="card-price-original">${formatPrice(p.price)}</span>
+      <span class="card-price-sale">${formatPrice(p.sale_price)}</span>
+    </div>`;
+  }
+  return `<div class="card-price">${formatPrice(p.price)}</div>`;
+}
+
 function renderCards(list) {
   const grid = document.getElementById('products-grid');
   if (!list.length) {
     grid.innerHTML = '<div class="empty">No builds in this category right now</div>';
     return;
   }
-  grid.innerHTML = list.map(p => `
+  grid.innerHTML = list.map(p => {
+    const hasSale = p.sale_price && p.sale_price > 0 && p.sale_price < p.price;
+    return `
     <div class="card" onclick="openModal('${p.id}')">
       <div class="card-img-wrap">
+        ${hasSale ? '<div class="sale-badge">Sale</div>' : ''}
         ${statusPillHtml(p.status || 'available')}
         ${p.image_url
           ? `<img src="${p.image_url}" alt="${p.name}" loading="lazy"
@@ -67,8 +82,8 @@ function renderCards(list) {
       <div class="card-body">
         <div class="card-category">${p.category || 'Custom PC'}</div>
         <div class="card-name">${p.name}</div>
-        <div class="card-price">${formatPrice(p.price)}</div>
-        <div class="card-price-label">Listed price</div>
+        ${priceBlockHtml(p)}
+        <div class="card-price-label">${hasSale ? 'Sale price' : 'Listed price'}</div>
       </div>
       <div class="card-footer">
         <button class="order-btn" ${p.status !== 'available' ? 'disabled' : ''} onclick="event.stopPropagation();${p.status === 'available' ? `openModal('${p.id}')` : ''}">
@@ -76,13 +91,26 @@ function renderCards(list) {
         </button>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function applyFilter() {
-  const filtered = currentStatusFilter === 'all' ? products : products.filter(p => (p.status || 'available') === currentStatusFilter);
+  let filtered = currentStatusFilter === 'all' ? products : products.filter(p => (p.status || 'available') === currentStatusFilter);
+  if (currentPriceFilter !== 'all') {
+    const [min, max] = currentPriceFilter.split('-').map(Number);
+    filtered = filtered.filter(p => {
+      const effectivePrice = (p.sale_price && p.sale_price > 0 && p.sale_price < p.price) ? p.sale_price : p.price;
+      return effectivePrice >= min && effectivePrice <= max;
+    });
+  }
   renderCards(filtered);
 }
+
+document.getElementById('price-filter').addEventListener('change', e => {
+  currentPriceFilter = e.target.value;
+  applyFilter();
+});
 
 document.getElementById('filter-bar').addEventListener('click', e => {
   const btn = e.target.closest('.filter-btn');
@@ -132,7 +160,10 @@ window.openModal = function(id) {
   document.getElementById('modal-status').innerHTML = statusPillHtml(status);
   document.getElementById('modal-cat').textContent = p.category || 'Custom PC';
   document.getElementById('modal-name').textContent = p.name;
-  document.getElementById('modal-price').textContent = formatPrice(p.price);
+  const hasSale = p.sale_price && p.sale_price > 0 && p.sale_price < p.price;
+  document.getElementById('modal-price').innerHTML = hasSale
+    ? `<span style="text-decoration:line-through;color:var(--muted);font-size:.7em;margin-right:8px">${formatPrice(p.price)}</span><span style="color:#d63030">${formatPrice(p.sale_price)}</span>`
+    : formatPrice(p.price);
   document.getElementById('modal-warranty').textContent = `🛡️ ${p.warranty || '3-12 month'} warranty included`;
   document.getElementById('modal-desc').textContent = p.description || 'Message us for more details.';
   document.getElementById('modal-specs').textContent = p.specs || 'Message us to ask about the full spec sheet.';
@@ -175,6 +206,8 @@ document.getElementById('modal-order-btn').addEventListener('click', () => {
 function openBookingModal() {
   if (!currentProduct) return;
   const p = currentProduct;
+  const hasSale = p.sale_price && p.sale_price > 0 && p.sale_price < p.price;
+  const effectivePrice = hasSale ? p.sale_price : p.price;
   document.getElementById('booking-form-view').classList.remove('hidden');
   document.getElementById('booking-success-view').classList.add('hidden');
   document.getElementById('booking-product-preview').innerHTML = `
@@ -185,7 +218,7 @@ function openBookingModal() {
       : '<div style="width:56px;height:56px;background:var(--surface2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">🖥️</div>'}
     <div>
       <div class="opp-name">${p.name}</div>
-      <div class="opp-price">${formatPrice(p.price)}</div>
+      <div class="opp-price">${hasSale ? `<span style="text-decoration:line-through;color:var(--muted);font-size:.8em;margin-right:6px">${formatPrice(p.price)}</span>` : ''}${formatPrice(effectivePrice)}</div>
     </div>
   `;
   document.getElementById('b-name').value = '';
@@ -386,7 +419,7 @@ window.openReviewModal = function() {
   // Populate product dropdown
  document.getElementById('rv-product').value = '';
 document.getElementById('rv-product-list').innerHTML =
-  products.map(p => `<option value="${p.name}">`).join('');
+  products.filter(p => p.status === 'sold').map(p => `<option value="${p.name}">`).join('');
 
   document.getElementById('rv-comment').value = '';
   selectedRating = 0;
