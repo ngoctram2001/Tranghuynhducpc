@@ -69,7 +69,7 @@ function renderCards(list) {
   grid.innerHTML = list.map(p => {
     const hasSale = p.sale_price && p.sale_price > 0 && p.sale_price < p.price;
     return `
-    <div class="card" onclick="openModal('${p.id}')">
+    <div class="card" onclick="window.location.href='product.html?id=${p.id}'" style="cursor:pointer">
       <div class="card-img-wrap">
         ${hasSale ? '<div class="sale-badge">Sale</div>' : ''}
         ${statusPillHtml(p.status || 'available')}
@@ -86,9 +86,9 @@ function renderCards(list) {
         <div class="card-price-label">${hasSale ? 'Sale price' : 'Listed price'}</div>
       </div>
       <div class="card-footer">
-        <button class="order-btn" ${p.status !== 'available' ? 'disabled' : ''} onclick="event.stopPropagation();${p.status === 'available' ? `openModal('${p.id}')` : ''}">
+        <a href="product.html?id=${p.id}" class="order-btn" ${p.status !== 'available' ? 'style="opacity:.5;pointer-events:none"' : ''}>
           ${p.status === 'available' ? 'View & order' : (p.status === 'reserved' ? 'Reserved' : 'Sold')}
-        </button>
+        </a>
       </div>
     </div>
   `;
