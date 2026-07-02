@@ -305,17 +305,17 @@ function renderProduct(p) {
     <!-- Q&A SECTION -->
     <div style="margin-top:48px;padding-top:32px;border-top:1px solid var(--border)">
       <h2 style="font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;margin-bottom:20px">
-        &#10067; Hỏi và đáp
+        &#10067; Questions & Answers
       </h2>
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px">
-        <p style="font-size:13px;color:var(--muted);margin-bottom:16px">Xin mời để lại câu hỏi, chúng tôi sẽ trả lời trong 30 phút từ 8h–22h mỗi ngày</p>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px"Please feel free to ask a question. I will try to respond as soon as possible.</p>
         <div style="display:flex;flex-direction:column;gap:12px">
-          <textarea id="qa-message" placeholder="Câu hỏi của bạn về sản phẩm này..." rows="3"
+          <textarea id="qa-message" placeholder="Your question about this product..." rows="3"
             style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-size:14px;font-family:inherit;resize:vertical"></textarea>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <input type="text" id="qa-name" placeholder="Họ tên *"
+            <input type="text" id="qa-name" placeholder="Full name*"
               style="flex:1;min-width:140px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:14px;font-family:inherit">
-            <input type="text" id="qa-contact" placeholder="SĐT hoặc Email *"
+            <input type="text" id="qa-contact" placeholder="Phone hoặc Email *"
               style="flex:1;min-width:140px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-size:14px;font-family:inherit">
           </div>
           <button onclick="submitQuestion('${escHtml(p.name)}')"
