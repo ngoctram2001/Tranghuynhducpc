@@ -223,7 +223,10 @@ function renderProduct(p) {
 
   document.getElementById('product-content').innerHTML = `
     <div class="product-layout">
-      <div class="gallery">${galleryHtml}</div>
+      <div class="gallery">
+        ${galleryHtml}
+        ${p.description ? `<p class="product-desc" style="margin-top:16px">${escHtml(p.description)}</p>` : ''}
+      </div>
       <div class="product-info">
         <div class="product-category">${escHtml(p.category||'Custom PC')}</div>
         <h1 class="product-title">${escHtml(p.name)}</h1>
@@ -236,7 +239,6 @@ function renderProduct(p) {
           ${statusPill(status)}
           ${p.warranty ? `<span style="font-size:13px;color:var(--muted)">&#128737; ${escHtml(p.warranty)} warranty</span>` : ''}
         </div>
-        ${p.description ? `<p class="product-desc">${escHtml(p.description)}</p>` : ''}
         ${specsHtml ? `<div class="specs-section"><div class="specs-title">Specifications</div>${specsHtml}</div>` : ''}
         <div class="order-section">
           <button class="order-btn-main" ${!canOrder?'disabled':''} onclick="openOrderModal()">
