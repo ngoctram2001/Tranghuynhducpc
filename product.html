@@ -63,7 +63,10 @@
 <body>
 
 <nav>
-  <a class="nav-logo" href="index.html"><span>PC</span> Store</a>
+  <a class="nav-logo" href="index.html">
+    <img src="favicon.png" style="width:28px;height:28px;border-radius:6px;object-fit:cover"> 
+    <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px">Máy tính <span style="color:var(--accent)">Cửa hàng</span></span>
+  </a>
   <div class="nav-links" id="nav-links">
     <a class="nav-link" href="index.html">All Products</a>
     <a class="nav-link" href="specials.html">Specials and Promotions</a>
@@ -83,7 +86,7 @@
 </div>
 
 <div class="product-page">
-  <a class="back-link" href="javascript:history.back()">&#8592; Back</a>
+  <a class="back-link" href="javascript:history.back()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-weight:500;text-decoration:none;margin-bottom:28px;transition:all .2s" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">&#8592; Quay lại</a>
   <div id="product-content">
     <div style="text-align:center;padding:60px;color:var(--muted)">Loading...</div>
   </div>
@@ -127,38 +130,36 @@
 
 <!-- FOOTER -->
 <footer style="margin-top:64px;border-top:1px solid var(--border);background:var(--surface);padding:40px 24px 24px">
-  <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:36px">
+  <div style="max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:36px">
 
     <!-- Thông tin cửa hàng -->
     <div>
-      <div style="font-weight:700;font-size:13px;letter-spacing:.8px;color:var(--muted);margin-bottom:14px">THÔNG TIN CỬA HÀNG</div>
-      <div style="display:flex;flex-direction:column;gap:8px;font-size:14px">
+      <div style="font-weight:700;font-size:12px;letter-spacing:.8px;color:var(--muted);margin-bottom:14px;text-transform:uppercase">Thông tin cửa hàng</div>
+      <div style="display:flex;flex-direction:column;gap:9px;font-size:14px">
         <div>🏪 <strong>PCStore Perth</strong></div>
         <div>📍 Ballajura, Perth, WA</div>
         <div>📧 <a href="mailto:duchuynhtrang@gmail.com" style="color:var(--accent);text-decoration:none">duchuynhtrang@gmail.com</a></div>
         <div>📞 <a href="tel:+61421918850" style="color:var(--accent);text-decoration:none">+61 421 918 850</a></div>
-        <div style="margin-top:4px">
-          <a href="https://www.facebook.com/duc.trang.775" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;font-size:13px">📘 Facebook page</a>
-        </div>
+        <div><a href="https://www.facebook.com/duc.trang.775" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none">📘 Facebook page</a></div>
       </div>
     </div>
 
     <!-- Quy định & Chính sách -->
     <div>
-      <div style="font-weight:700;font-size:13px;letter-spacing:.8px;color:var(--muted);margin-bottom:14px">QUY ĐỊNH & CHÍNH SÁCH BÁN HÀNG</div>
-      <div style="display:flex;flex-direction:column;gap:8px;font-size:14px;color:var(--text)">
-        <div>🛡️ Chính sách bảo hành 3–12 tháng</div>
+      <div style="font-weight:700;font-size:12px;letter-spacing:.8px;color:var(--muted);margin-bottom:14px;text-transform:uppercase">Quy định & Chính sách</div>
+      <div style="display:flex;flex-direction:column;gap:9px;font-size:14px;color:var(--text)">
+        <div>🛡️ Bảo hành 3–12 tháng</div>
         <div>🔒 Bảo mật thông tin khách hàng</div>
         <div>🚚 Vận chuyển miễn phí dưới 5km</div>
-        <div>✅ Sản phẩm kiểm tra kỹ trước khi giao</div>
-        <div>🔄 Hỗ trợ đổi linh kiện trong thời gian bảo hành</div>
+        <div>✅ Kiểm tra kỹ trước khi giao</div>
+        <div>🔄 Đổi linh kiện trong thời gian bảo hành</div>
       </div>
     </div>
 
     <!-- Hỗ trợ khách hàng -->
     <div>
-      <div style="font-weight:700;font-size:13px;letter-spacing:.8px;color:var(--muted);margin-bottom:14px">HỖ TRỢ KHÁCH HÀNG</div>
-      <div style="display:flex;flex-direction:column;gap:8px;font-size:14px">
+      <div style="font-weight:700;font-size:12px;letter-spacing:.8px;color:var(--muted);margin-bottom:14px;text-transform:uppercase">Hỗ trợ khách hàng</div>
+      <div style="display:flex;flex-direction:column;gap:9px;font-size:14px">
         <a href="contact.html" style="color:var(--text);text-decoration:none">💬 Yêu cầu báo giá</a>
         <a href="contact.html" style="color:var(--text);text-decoration:none">🖥️ Tư vấn chọn sản phẩm</a>
         <a href="contact.html" style="color:var(--text);text-decoration:none">🔧 Tư vấn cấu hình theo nhu cầu</a>
