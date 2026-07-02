@@ -69,7 +69,8 @@
     <a class="nav-link" href="specials.html">Specials and Promotions</a>
     <a class="nav-link" href="info.html">Build Guide</a>
     <a class="nav-link" href="contact.html">Contact Us</a>
-    <a class="nav-link" href="https://www.facebook.com/codepcstore" target="_blank" rel="noopener">Facebook page</a>
+    <a class="nav-link" href="https://www.facebook.com/duc.trang.775" target="_blank" rel="noopener">Facebook page</a>
+    <a class="nav-link" href="https://www.facebook.com/duc.trang.775" target="_blank" rel="noopener">Facebook Reviews</a>
   </div>
   <button class="nav-toggle" id="nav-toggle">☰</button>
 </nav>
@@ -241,11 +242,23 @@ function renderProduct(p) {
           <button class="order-btn-main" ${!canOrder?'disabled':''} onclick="openOrderModal()">
             ${canOrder ? '&#128230; Order this build' : status==='reserved' ? '&#8987; Reserved' : '&#10003; Sold'}
           </button>
+          <button onclick="copyProductLink()" style="width:100%;padding:12px;border-radius:12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:border-color .2s" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+            🔗 Copy product link
+          </button>
           ${canOrder ? `<p class="order-note">&#128205; Local pickup only · Perth, WA</p>` : ''}
         </div>
       </div>
     </div>`;
 }
+
+window.copyProductLink = function() {
+  navigator.clipboard.writeText(window.location.href).then(() => {
+    const btn = document.querySelector('[onclick="copyProductLink()"]');
+    const original = btn.textContent;
+    btn.textContent = '✅ Link copied!';
+    setTimeout(() => btn.textContent = original, 2000);
+  });
+};
 
 window.openOrderModal = function() {
   if (!currentProduct) return;
