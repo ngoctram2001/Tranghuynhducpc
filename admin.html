@@ -287,7 +287,6 @@
         style="width:auto;padding:10px 14px;font-size:14px;border-radius:8px">
         <option value="all">Tất cả trạng thái</option>
         <option value="pending">Pending</option>
-        <option value="confirmed">Confirmed</option>
         <option value="done">Completed</option>
       </select>
       <div id="order-count" style="font-size:13px;color:#a8957f;white-space:nowrap"></div>
@@ -883,7 +882,6 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
         <td>
           <select data-id="${o.id}" onchange="updateOrderStatus(this)" style="padding:6px 10px;font-size:12px;width:auto">
             <option value="pending"    ${o.status==='pending'    ?'selected':''}>Pending</option>
-            <option value="confirmed"  ${o.status==='confirmed'  ?'selected':''}>Confirmed</option>
             <option value="done"       ${o.status==='done'       ?'selected':''}>Completed</option>
             <option value="cancelled"  ${o.status==='cancelled'  ?'selected':''}>Cancelled</option>
           </select>
@@ -1241,12 +1239,12 @@ function downloadImage(){
       if (status === 'done') {
         // Đơn hoàn thành → sản phẩm đã bán
         productStatus = 'sold';
-      } else if (status === 'confirmed') {
-        // Đơn xác nhận → giữ reserved
-        productStatus = 'reserved';
-      } else if (status === 'pending') {
-        // Đơn quay lại pending → mở lại sản phẩm
+      } else if (status === 'cancelled') {
+        // Đơn hủy → mở lại sản phẩm về available
         productStatus = 'available';
+      } else if (status === 'pending') {
+        // Đơn pending → sản phẩm đang được đặt
+        productStatus = 'reserved';
       }
 
       if (productStatus) {
@@ -1259,7 +1257,7 @@ function downloadImage(){
       }
     }
 
-    const labels = { done: 'Completed ✅', confirmed: 'Confirmed', pending: 'Pending', cancelled: 'Cancelled' };
+    const labels = { done: 'Completed ✅', pending: 'Pending', cancelled: 'Cancelled' };
     showToast(`✅ Order marked as ${labels[status] || status}`);
     await loadOrders();
     updateStats();
