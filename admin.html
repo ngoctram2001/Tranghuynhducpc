@@ -136,18 +136,16 @@
   .save-btn:hover { opacity: .9; }
   .save-btn:disabled { opacity: .5; cursor: not-allowed; }
 
-  /* IMAGE UPLOAD */
-  .image-upload-row { display: flex; gap: 12px; align-items: center; }
-  .image-upload-row input[type=text] { flex: 1; }
-  .upload-btn-wrap { flex-shrink: 0; }
-  .upload-btn-wrap input[type=file] { display: none; }
-  .upload-btn {
-    background: var(--surface2); border: 1px solid var(--border); color: var(--text);
-    padding: 11px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
-    display: flex; align-items: center; gap: 6px; white-space: nowrap;
-  }
-  .upload-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .image-preview { margin-top: 10px; width: 100%; max-width: 200px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); aspect-ratio: 4/3; background: var(--surface2); display: none; }
+  /* MULTI IMAGE UPLOAD */
+  .multi-upload-wrap { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; align-items:flex-start; }
+  .images-grid { display:flex; flex-wrap:wrap; gap:10px; }
+  .img-thumb-wrap { position:relative; width:90px; height:90px; border-radius:8px; overflow:hidden; border:1px solid var(--border); flex-shrink:0; }
+  .img-thumb-wrap img { width:100%; height:100%; object-fit:cover; display:block; }
+  .img-first-badge { position:absolute; top:4px; left:4px; background:var(--accent); color:#fff; font-size:9px; font-weight:700; padding:2px 5px; border-radius:4px; }
+  .img-remove-btn { position:absolute; top:4px; right:4px; background:rgba(0,0,0,.6); color:#fff; border:none; border-radius:50%; width:20px; height:20px; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .img-remove-btn:hover { background:var(--red); }
+  .add-image-btn { width:90px; height:90px; border:2px dashed var(--border); border-radius:8px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--muted); font-size:12px; text-align:center; flex-shrink:0; transition:border-color .2s; }
+  .add-image-btn:hover { border-color:var(--accent); color:var(--accent); }
   .image-preview img { width: 100%; height: 100%; object-fit: cover; }
   .image-preview.show { display: block; }
   .upload-status { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -395,20 +393,15 @@
         <div class="form-group"></div>
       </div>
       <div class="form-group">
-        <label>Product image</label>
-        <div class="image-upload-row">
-          <input type="text" id="p-img" placeholder="https://... or upload a photo">
-          <div class="upload-btn-wrap" id="upload-btn-wrap">
-            <label for="p-img-file" class="upload-btn">📷 Upload photo</label>
-            <input type="file" id="p-img-file" accept="image/*">
-          </div>
+        <label>Product images <span style="color:var(--muted);font-size:12px;font-weight:400">(ảnh đầu tiên là ảnh bìa)</span></label>
+        <div class="multi-upload-wrap">
+          <div id="images-grid" class="images-grid"></div>
+          <label class="add-image-btn" id="add-image-btn">
+            <input type="file" id="p-img-files" accept="image/*" multiple style="display:none">
+            <span>📷 Thêm ảnh</span>
+          </label>
         </div>
-        <div class="upload-status" id="upload-status"></div>
-        <div class="image-preview" id="image-preview">
-          <img id="image-preview-img" src="" alt="Preview"
-            onerror="this.style.opacity='.3'"
-            onload="this.style.opacity='1'">
-        </div>
+        <div id="upload-status" class="upload-status"></div>
       </div>
       <div class="form-group"><label>Short description</label><textarea id="p-desc" placeholder="Short product description..."></textarea></div>
       <div class="form-group"><label>Full specifications</label><textarea id="p-specs" placeholder="CPU: Intel i5-13400F&#10;RAM: 16GB DDR4&#10;GPU: RTX 4060&#10;SSD: 500GB NVMe&#10;..."></textarea></div>
@@ -749,90 +742,85 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
   };
 
   // ─── PRODUCT MODAL ────────────────────────────────────────────────────────
+  // ── MULTI-IMAGE STATE ─────────────────────────────────────────────────────
+  let currentImages = []; // array of URLs
+
+  function renderImagesGrid() {
+    const grid = document.getElementById('images-grid');
+    grid.innerHTML = currentImages.map((url, i) => `
+      <div class="img-thumb-wrap">
+        <img src="${url}" onerror="this.style.opacity='.3'">
+        ${i === 0 ? '<span class="img-first-badge">Bìa</span>' : ''}
+        <button class="img-remove-btn" onclick="removeImage(${i})">✕</button>
+      </div>
+    `).join('');
+  }
+
+  window.removeImage = function(idx) {
+    currentImages.splice(idx, 1);
+    renderImagesGrid();
+  };
+
+  document.getElementById('p-img-files').addEventListener('change', async e => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+    const status = document.getElementById('upload-status');
+    status.textContent = `⏳ Đang upload ${files.length} ảnh...`;
+    status.style.color = 'var(--muted)';
+    e.target.value = '';
+
+    let uploaded = 0;
+    for (const file of files) {
+      try {
+        const ext      = file.name.split('.').pop().toLowerCase();
+        const fileName = `product-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error } = await supabase.storage.from('product-images').upload(fileName, file, { cacheControl: '3600', upsert: false });
+        if (error) throw error;
+        const { data: urlData } = supabase.storage.from('product-images').getPublicUrl(fileName);
+        currentImages.push(urlData.publicUrl);
+        uploaded++;
+        renderImagesGrid();
+        status.textContent = `⏳ Đã upload ${uploaded}/${files.length}...`;
+      } catch (err) {
+        status.textContent = `❌ Lỗi upload: ${err.message}`;
+        status.style.color = 'var(--red)';
+      }
+    }
+    status.textContent = `✅ Upload xong ${uploaded} ảnh!`;
+    status.style.color = 'var(--green)';
+  });
+
   window.openProductModal = function (product) {
     const isEdit = !!product;
     document.getElementById('product-modal-title').textContent = isEdit ? 'Edit product' : 'Add product';
     document.getElementById('product-id').value = isEdit ? product.id : '';
     document.getElementById('upload-status').textContent = '';
-    const preview = document.getElementById('image-preview');
-    preview.classList.remove('show');
 
     if (isEdit) {
-      document.getElementById('p-name').value     = product.name || '';
-      document.getElementById('p-price').value    = product.price || '';
+      document.getElementById('p-name').value       = product.name || '';
+      document.getElementById('p-price').value      = product.price || '';
       document.getElementById('p-sale-price').value = product.sale_price || '';
-      document.getElementById('p-status').value   = product.status || 'available';
-      document.getElementById('p-category').value = product.category || '';
-      document.getElementById('p-warranty').value = product.warranty || '';
-      document.getElementById('p-img').value      = product.image_url || '';
-      document.getElementById('p-desc').value     = product.description || '';
-      document.getElementById('p-specs').value    = product.specs || '';
-      if (product.image_url) {
-        document.getElementById('image-preview-img').src = product.image_url;
-        preview.classList.add('show');
-      }
+      document.getElementById('p-status').value     = product.status || 'available';
+      document.getElementById('p-category').value   = product.category || '';
+      document.getElementById('p-warranty').value   = product.warranty || '';
+      document.getElementById('p-desc').value       = product.description || '';
+      document.getElementById('p-specs').value      = product.specs || '';
+      // Load images array, fallback về image_url cũ nếu chưa có
+      currentImages = (product.images && product.images.length)
+        ? [...product.images]
+        : (product.image_url ? [product.image_url] : []);
     } else {
-      ['p-name','p-price','p-sale-price','p-category','p-warranty','p-img','p-desc','p-specs'].forEach(id => {
+      ['p-name','p-price','p-sale-price','p-category','p-warranty','p-desc','p-specs'].forEach(id => {
         document.getElementById(id).value = '';
       });
       document.getElementById('p-status').value = 'available';
+      currentImages = [];
     }
+    renderImagesGrid();
     document.getElementById('product-modal').classList.add('open');
   };
 
   window.closeProductModal = () => document.getElementById('product-modal').classList.remove('open');
-
-  // Image URL preview
-  document.getElementById('p-img').addEventListener('input', e => {
-    const url = e.target.value.trim();
-    const preview = document.getElementById('image-preview');
-    if (url) { document.getElementById('image-preview-img').src = url; preview.classList.add('show'); }
-    else { preview.classList.remove('show'); }
-  });
-
-  // Image file upload
-  document.getElementById('p-img-file').addEventListener('change', async e => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const status     = document.getElementById('upload-status');
-    const preview    = document.getElementById('image-preview');
-    const previewImg = document.getElementById('image-preview-img');
-
-    // Hiện preview local ngay lập tức
-    const localUrl = URL.createObjectURL(file);
-    previewImg.src = localUrl;
-    preview.classList.add('show');
-    status.textContent = '⏳ Đang upload...';
-    status.style.color = 'var(--muted)';
-
-    // Reset để có thể chọn lại cùng file
-    e.target.value = '';
-
-    try {
-      const ext      = file.name.split('.').pop().toLowerCase();
-      const fileName = `product-${Date.now()}.${ext}`;
-      const { error } = await supabase.storage
-        .from('product-images')
-        .upload(fileName, file, { cacheControl: '3600', upsert: false });
-
-      if (error) throw error;
-
-      const { data: urlData } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(fileName);
-
-      document.getElementById('p-img').value = urlData.publicUrl;
-      previewImg.src = urlData.publicUrl;
-      status.textContent = '✅ Upload thành công!';
-      status.style.color = 'var(--green)';
-
-    } catch (err) {
-      status.textContent = '❌ Upload lỗi: ' + (err.message || 'Kiểm tra Storage bucket');
-      status.style.color = 'var(--red)';
-      // Vẫn giữ preview local và cho phép save với URL thủ công
-    }
-  });
 
   window.saveProduct = async function () {
     const rawId = document.getElementById('product-id').value;
@@ -844,7 +832,8 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
       status:      document.getElementById('p-status').value,
       category:    document.getElementById('p-category').value.trim(),
       warranty:    document.getElementById('p-warranty').value.trim(),
-      image_url:   document.getElementById('p-img').value.trim(),
+      image_url:   currentImages[0] || '',
+      images:      currentImages,
       description: document.getElementById('p-desc').value.trim(),
       specs:       document.getElementById('p-specs').value.trim(),
     };
